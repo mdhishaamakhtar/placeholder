@@ -30,6 +30,7 @@ import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import io.lettuce.core.RedisClient
+import org.jsoup.Jsoup
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -164,11 +165,26 @@ class ApiTest {
 
     @Test
     fun themeCookieIsRenderedIntoThePage() = withApp { client ->
-        val dark = client.get("/").bodyAsText()
-        assertTrue("data-theme" !in dark)
-        val light = client.get("/") { header(HttpHeaders.Cookie, "theme=light") }.bodyAsText()
-        assertTrue("<html lang=\"en\" data-theme=\"light\">" in light)
-        assertTrue("content=\"#FFFFFF\"" in light)
+        val dark = Jsoup.parse(client.get("/").bodyAsText())
+        assertEquals("dark", dark.selectFirst("html")!!.attr("data-theme"))
+        assertEquals("#000000", dark.selectFirst("meta[name=theme-color]")!!.attr("content"))
+
+        val light = Jsoup.parse(client.get("/") { header(HttpHeaders.Cookie, "theme=light") }.bodyAsText())
+        assertEquals("light", light.selectFirst("html")!!.attr("data-theme"))
+        assertEquals("#FFFFFF", light.selectFirst("meta[name=theme-color]")!!.attr("content"))
+        assertEquals(1, light.select("title").size)
+        assertEquals(1, light.select("meta[name=theme-color]").size)
+    }
+
+    @Test
+    fun pastedContentCannotEscapeTheMetaTags() = withApp { client ->
+        val hostile = "\"><script>alert(1)</script><meta name=\"x"
+        val created = client.create(hostile, "html").body<CreateSnipResponse>()
+        val page = client.get("/${created.slug}").bodyAsText()
+        val doc = Jsoup.parse(page)
+        assertTrue(doc.select("script:containsData(alert(1))").isEmpty(), "no script injected")
+        assertEquals(hostile, doc.selectFirst("meta[name=description]")!!.attr("content"))
+        assertEquals("/${created.slug}/og.png", doc.selectFirst("meta[property=og:image]")!!.attr("content").substringAfter("test.local"))
     }
 
     @Test

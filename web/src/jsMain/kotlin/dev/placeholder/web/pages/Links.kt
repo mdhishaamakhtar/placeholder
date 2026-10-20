@@ -11,11 +11,12 @@ import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
 import com.varabyte.kobweb.navigation.UpdateHistoryMode
+import dev.placeholder.shared.Languages
+import dev.placeholder.shared.Paths
 import dev.placeholder.shared.SnipKind
 import dev.placeholder.shared.SnipSummary
 import dev.placeholder.web.Api
 import dev.placeholder.web.ApiException
-import dev.placeholder.web.Detection
 import dev.placeholder.web.Session
 import dev.placeholder.web.components.Loading
 import dev.placeholder.web.components.RowTarget
@@ -46,7 +47,7 @@ fun LinksPage() {
     LaunchedEffect(Session.ready, me) {
         if (!Session.ready) return@LaunchedEffect
         if (me == null) {
-            ctx.router.navigateTo(signinPath(), UpdateHistoryMode.REPLACE)
+            ctx.router.navigateTo(Paths.signIn(next = Paths.LINKS), UpdateHistoryMode.REPLACE)
             return@LaunchedEffect
         }
         try {
@@ -77,16 +78,16 @@ fun LinksPage() {
     Shell(title = "Your links") {
         val list = items
         when {
-            error != null && list == null -> StateScreen(error!!)
+            list == null && error != null -> StateScreen(error.orEmpty())
             list == null -> Loading()
             list.isEmpty() -> StateScreen(
                 lead = "You haven't made any links yet.",
                 sub = "Links you make while signed in show up here, on every device.",
             ) {
-                Anchor("/new", { classes("act") }) { Text("Make one") }
+                Anchor(Paths.NEW, { classes("act") }) { Text("Make one") }
             }
             else -> {
-                Div({ classes("recent") }) {
+                Div({ classes("link-list") }) {
                     Ul({ classes("snip-rows") }) {
                         list.forEach { item -> LinkRow(item) }
                     }
@@ -111,7 +112,7 @@ fun LinksPage() {
                 onClick {
                     scope.launch {
                         Session.signOut()
-                        ctx.router.navigateTo("/")
+                        ctx.router.navigateTo(Paths.HOME)
                     }
                 }
             }) { Text("Sign out") }
@@ -121,7 +122,7 @@ fun LinksPage() {
 
 @Composable
 private fun LinkRow(item: SnipSummary) {
-    val kind = if (item.kind == SnipKind.LINK) "Link" else Detection(item.language, isLink = false).label
+    val kind = if (item.kind == SnipKind.LINK) "Link" else Languages.name(item.language)
     val expiresAt = item.expiresAt
     val expired = expiresAt != null && expiresAt <= Date.now()
     SnipRow(
@@ -130,7 +131,7 @@ private fun LinkRow(item: SnipSummary) {
         language = item.language.takeIf { item.kind == SnipKind.CODE },
         slug = item.slug,
         // Short links go through the server so the redirect happens there; everything else stays in the app.
-        target = if (item.kind == SnipKind.LINK) RowTarget.Server("/${item.slug}") else RowTarget.InApp("/${item.slug}"),
+        target = if (item.kind == SnipKind.LINK) RowTarget.Server(Paths.snip(item.slug)) else RowTarget.InApp(Paths.snip(item.slug)),
         detail = when {
             expired -> "Expired"
             expiresAt != null -> "Until ${formatDate(expiresAt.toDouble())}"

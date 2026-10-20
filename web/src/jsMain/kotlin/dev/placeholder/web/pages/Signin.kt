@@ -9,8 +9,8 @@ import androidx.compose.runtime.setValue
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
+import dev.placeholder.shared.Paths
 import dev.placeholder.shared.Rules
-import dev.placeholder.web.Api
 import dev.placeholder.web.ApiException
 import dev.placeholder.web.Session
 import dev.placeholder.web.components.Shell
@@ -32,7 +32,7 @@ fun SigninPage() {
     val ctx = rememberPageContext()
     val creating = ctx.route.params["mode"] == "create"
     // Only follow plain same-site paths after signing in, never a full URL someone put in the link.
-    val next = ctx.route.params["next"]?.takeIf { SAFE_NEXT.matches(it) } ?: DEFAULT_NEXT
+    val next = ctx.route.params["next"]?.takeIf(Paths::isSafeNext) ?: Paths.NEW
     val scope = rememberCoroutineScope()
 
     var email by remember { mutableStateOf("") }
@@ -46,7 +46,7 @@ fun SigninPage() {
         error = null
         scope.launch {
             try {
-                Session.me = if (creating) Api.signUp(email, password) else Api.signIn(email, password)
+                if (creating) Session.signUp(email, password) else Session.signIn(email, password)
                 ctx.router.navigateTo(next)
             } catch (e: ApiException) {
                 error = e.message
@@ -114,23 +114,13 @@ fun SigninPage() {
                             },
                         )
                     }
-                    Anchor(signinPath(create = !creating, next), { classes("act") }) {
+                    Anchor(Paths.signIn(create = !creating, next = next), { classes("act") }) {
                         Text(if (creating) "I have an account" else "Create an account")
                     }
                 }
-                if (error != null) Div({ classes("notice"); attr("role", "alert") }) { Text(error!!) }
+                error?.let { message -> Div({ classes("notice"); attr("role", "alert") }) { Text(message) } }
             }
         }
     }
 }
 
-private const val DEFAULT_NEXT = "/new"
-private val SAFE_NEXT = Regex("^/(?!/)[A-Za-z0-9/_-]*(\\?[A-Za-z0-9=_-]*)?$")
-
-fun signinPath(create: Boolean = false, next: String = DEFAULT_NEXT): String {
-    val params = listOfNotNull(
-        "mode=create".takeIf { create },
-        "next=$next".takeIf { next != DEFAULT_NEXT && SAFE_NEXT.matches(next) },
-    )
-    return if (params.isEmpty()) "/signin" else "/signin?" + params.joinToString("&")
-}

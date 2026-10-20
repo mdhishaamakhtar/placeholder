@@ -1,6 +1,12 @@
-/* placeholder: black, white, one grey. Type does the work; motion only confirms. */
+/* placeholder: black, white, one grey. Type does the work; motion only confirms.
+ *
+ * Everything below is built from the tokens in :root. Sizes and spacing come from two small scales; a value that
+ * isn't a token should have a comment saying why. Sections: fonts, tokens, base, frame, controls, editor, created
+ * link, link view, lists, menus, sign-in, landing, states, motion preferences.
+ */
 
-/* Self-hosted, so pages never wait on a third-party font server. */
+/* ---------- Fonts: self-hosted, so pages never wait on a third-party font server ---------- */
+
 @font-face {
   font-family: "Hanken Grotesk";
   font-style: normal;
@@ -41,23 +47,24 @@
   src: url("/fonts/geist-mono-500.woff2") format("woff2");
 }
 
+/* ---------- Tokens ---------- */
 
 :root {
   color-scheme: dark;
 
-  /* Dark is the default theme. */
+  /* Color, dark (the default theme). */
   --ink: #EDEDED;
   --paper: #000000;
-  --muted: #8A8A8A;      /* 6.4:1 on paper: secondary text */
-  --hairline: #1F1F1F;
-  --ghost: #151515;      /* decorative only, never carries meaning */
+  --muted: #8A8A8A;            /* 6.4:1 on paper: secondary text */
+  --hairline: #1F1F1F;         /* rules between rows */
+  --rule: var(--ink);          /* rules that open or close a section */
   --danger: #E8A0A0;
-  --underline: #4A4A4A;
-  --gutter-ink: #4D4D4D;
+  --underline: #4A4A4A;        /* resting underline on text actions */
+  --gutter-ink: #4D4D4D;       /* line numbers */
   --code-punct: #A6A6A6;
   --scroll: #333333;
   --focus-ring: #5A5A5A;
-  --surface: #0C0C0C;
+  --surface: #0C0C0C;          /* raised layers: menus */
   --surface-edge: #262626;
   --surface-hover: #1A1A1A;
   --surface-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.9);
@@ -72,15 +79,45 @@
   --syn-attr: #B281EB;
   --syn-meta: #FD8F3F;
 
+  /* Type: two families, six roles about 1.125x apart, plus two display sizes for the landing headline and the new
+     short code. rem, so browser zoom and the visitor's font-size setting are respected. */
   --sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --type-small: 0.875rem;      /* 14px: nav, actions, metadata, labels, menus, footers */
+  --type-code: 0.9375rem;      /* 15px mono: reads as large as 16px sans */
+  --type-body: 1rem;           /* 16px: default text, hints */
+  --type-reading: 1.125rem;    /* 18px: text pastes, inputs, state messages, feature rows */
+  --type-lead: 1.25rem;        /* 20px: the sentence that introduces a page */
+  --type-display: clamp(2.75rem, 6vw, 6rem);
+  --type-giant: clamp(4.5rem, 15.5vw, 13.75rem);
 
-  --gutter: 40px;
-  --edge-top: 28px;
-  --giant: clamp(72px, 15.5vw, 220px);
+  --leading-tight: 1.02;       /* display */
+  --leading-ui: 1.5;
+  --leading-lead: 1.45;
+  --leading-reading: 1.6;
+  --leading-code: 1.75;        /* generous: mono lines read better with air */
+
+  /* Space: one 4px-based scale. Tight steps group things; wide steps separate groups. */
+  --space-1: 0.25rem;          /* 4 */
+  --space-2: 0.5rem;           /* 8 */
+  --space-3: 0.75rem;          /* 12 */
+  --space-4: 1rem;             /* 16 */
+  --space-5: 1.5rem;           /* 24 */
+  --space-6: 2rem;             /* 32 */
+  --space-7: 3rem;             /* 48 */
+  --space-8: 4rem;             /* 64 */
+
+  --gutter: 2.5rem;            /* page side margin */
+  --edge-top: var(--space-5);
+  --measure: 70ch;             /* comfortable reading line */
+  --tap: 2.75rem;              /* 44px minimum touch target */
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --fast: 150ms;
+  --enter: 160ms;
+  --leave: 120ms;
 }
 
 :root[data-theme="light"] {
@@ -88,9 +125,8 @@
 
   --ink: #0A0A0A;
   --paper: #FFFFFF;
-  --muted: #6B6B6B;      /* 5.3:1 on paper */
+  --muted: #6B6B6B;            /* 5.3:1 on paper */
   --hairline: #E6E6E6;
-  --ghost: #EDEDED;
   --danger: #8A1C1C;
   --underline: #BDBDBD;
   --gutter-ink: #B8B8B8;
@@ -113,25 +149,22 @@
   --syn-meta: #643820;
 }
 
-/* Theme switch: everything changes in the same frame, nothing fades on its own schedule. */
-.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
-  transition: none !important;
+@media (max-width: 640px) {
+  :root { --gutter: var(--space-4); --edge-top: var(--space-4); }
 }
 
-@media (max-width: 640px) {
-  :root { --gutter: 18px; --edge-top: 18px; }
-}
+/* ---------- Base ---------- */
 
 *, *::before, *::after { box-sizing: border-box; }
 
 html, body {
   margin: 0;
-  height: 100%;
+  min-height: 100%;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: var(--type-body);
+  line-height: var(--leading-ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -142,21 +175,24 @@ html, body {
 
 * { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
 
+/* Theme switch: everything changes in the same frame, nothing fades on its own schedule. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
+  transition: none !important;
+}
+
 /* Keyboard focus: visible, but in the page's own language rather than a hard box. */
-:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: var(--space-1); }
+
 .act:focus-visible, .nav a:focus-visible, .theme-toggle:focus-visible, .mark:focus-visible, .quiet-link:focus-visible {
   outline: none;
   color: var(--ink);
   text-decoration: underline;
   text-decoration-color: var(--ink);
   text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+  text-underline-offset: var(--space-1);
 }
 
-/* Kobweb's dev status chip never belongs on this page. */
-body > #status { display: none !important; }
-
-/* ---------- Frame ---------- */
+/* ---------- Frame: wordmark and nav on top, the page below ---------- */
 
 .frame {
   min-height: 100dvh;
@@ -173,33 +209,31 @@ body > #status { display: none !important; }
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 14px;
-  letter-spacing: 0.01em;
+  gap: var(--space-5);
+  font-size: var(--type-small);
 }
 
 .mark {
-  font-size: 16px;
+  font-size: var(--type-body);
   font-weight: 500;
   color: var(--ink);
   text-decoration: none;
 }
 
-.nav { display: flex; gap: 28px; align-items: baseline; }
+.nav { display: flex; gap: var(--space-5); align-items: baseline; }
+
+.nav a, .quiet-link, .theme-toggle {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color var(--fast) ease;
+}
 
 .theme-toggle {
   background: none;
   border: 0;
   padding: 0;
   font: inherit;
-  color: var(--muted);
   cursor: pointer;
-  transition: color 150ms ease;
-}
-
-.nav a, .quiet-link {
-  color: var(--muted);
-  text-decoration: none;
-  transition: color 150ms ease;
 }
 
 .nav a[aria-current="page"] { color: var(--ink); }
@@ -208,30 +242,25 @@ body > #status { display: none !important; }
   display: grid;
   grid-template-rows: 1fr auto;
   min-height: 0;
-  padding-top: 24px;
-  animation: page-in 200ms var(--ease-out) both;
+  padding-top: var(--space-5);
+  animation: fade var(--enter) var(--ease-out) both;
 }
 
-@keyframes page-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* ---------- Text actions & button ---------- */
+/* ---------- Controls: text actions and the one solid button ---------- */
 
 .act {
   background: none;
   border: 0;
   padding: 0;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--type-small);
   color: var(--ink);
   cursor: pointer;
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
   text-decoration-color: var(--underline);
-  transition: text-decoration-color 150ms ease, opacity 150ms ease;
+  transition: text-decoration-color var(--fast) ease, opacity var(--fast) ease;
 }
 
 /* Decorations don't reach into inline-grid children, so the swap labels draw their own underline. */
@@ -244,44 +273,103 @@ body > #status { display: none !important; }
 
 .act:disabled { opacity: 0.35; cursor: default; }
 
-@media (hover: hover) and (pointer: fine) {
-  .act:not(:disabled):hover { --underline: var(--ink); }
-  .nav a:hover, .quiet-link:hover, .theme-toggle:hover { color: var(--ink); }
-}
-
 .button {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-5);
   background: var(--ink);
   color: var(--paper);
   border: 0;
   font: inherit;
-  font-size: 14px;
+  font-size: var(--type-small);
   letter-spacing: 0.01em;
-  padding: 14px 28px;
+  text-decoration: none;
   cursor: pointer;
-  transition: transform 140ms var(--ease-out), opacity 150ms ease;
+  transition: transform 140ms var(--ease-out), opacity var(--fast) ease;
 }
 
 .button:active:not(:disabled) { transform: scale(0.97); }
 .button:disabled { opacity: 0.22; cursor: default; }
 .button[data-busy="true"] { opacity: 0.6; cursor: progress; }
 
-/* "Copy link" ⇄ "Copied": two labels stacked in one cell, crossfaded with a little blur so it reads as one change. */
+/* The keyboard shortcut lives inside the button it triggers, quieter than the label. */
+.button .kbd { opacity: 0.5; letter-spacing: 0; }
+
+@media (hover: hover) and (pointer: fine) {
+  .act:not(:disabled):hover { --underline: var(--ink); }
+  .nav a:hover, .quiet-link:hover, .theme-toggle:hover { color: var(--ink); }
+}
+
+/* Touch screens: small text controls keep their look but get a 44px tap area. */
+@media (pointer: coarse) {
+  .act, .nav a, .theme-toggle, .quiet-link, .menu-trigger {
+    padding-block: var(--space-3);
+    margin-block: calc(-1 * var(--space-3));
+  }
+  .button .kbd { display: none; }
+}
+
+/* "Copy link" to "Copied": two labels in one cell, crossfaded with a little blur so it reads as one change. */
 .swap { display: inline-grid; }
 .swap > span {
   grid-area: 1 / 1;
-  transition: opacity 160ms ease, filter 160ms ease, text-decoration-color 150ms ease;
+  transition: opacity var(--enter) ease, filter var(--enter) ease, text-decoration-color var(--fast) ease;
 }
 .swap > span:last-child { opacity: 0; filter: blur(2px); }
 .swap[data-on="true"] > span:first-child { opacity: 0; filter: blur(2px); }
 .swap[data-on="true"] > span:last-child { opacity: 1; filter: none; }
 
-/* ---------- Composer ---------- */
+/* A row of controls under or over content: details on the left, actions on the right. */
+.foot {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  font-size: var(--type-small);
+}
+
+.push { margin-left: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
+.save { display: inline-flex; align-items: center; gap: var(--space-5); }
+
+.kind, .copy-of { color: var(--muted); }
+.kind b { color: var(--ink); font-weight: 500; }
+
+/* Errors arrive gently and sit in the same rhythm as everything else. */
+.notice {
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: var(--type-small);
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
+  @starting-style { opacity: 0; transform: translateY(var(--space-1)); }
+}
+
+/* ---------- Editor ---------- */
 
 .stage { position: relative; min-height: 0; }
 
-.composer {
+/* The textarea and the highlighted copy behind it share every metric, so they wrap at exactly the same points. */
+.composer, .composer-highlight {
   position: absolute;
   inset: 0;
+  margin: 0;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: var(--type-code);
+  line-height: var(--leading-code);
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+.composer {
   width: 100%;
   height: 100%;
   resize: none;
@@ -290,119 +378,48 @@ body > #status { display: none !important; }
   background: transparent;
   color: var(--ink);
   caret-color: var(--ink);
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.75;
-  padding: 0;
-  tab-size: 2;
-  /* Long lines wrap instead of scrolling sideways. The highlight layer below wraps identically. */
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-gutter: stable;
 }
 
-.composer:focus-visible { outline: none; }
-
-/* Live highlighting: the textarea keeps the caret and selection, the highlighted copy shows through behind it. */
-.composer-highlight {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  pointer-events: none;
-  overflow: hidden;
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.75;
-  tab-size: 2;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  /* Same reserved scrollbar space as the textarea, so both wrap at exactly the same width. */
-  scrollbar-gutter: stable;
-  color: var(--ink);
-}
-
+.composer-highlight { pointer-events: none; overflow-y: hidden; color: var(--ink); }
 .composer-highlight code { font: inherit; }
-
+.composer:focus-visible { outline: none; }
 .composer[data-highlighted="true"] { color: transparent; -webkit-text-fill-color: transparent; }
 .composer[data-highlighted="true"]::selection { color: transparent; }
 
+/* The empty editor's hint fades and softens as soon as there's text. */
 .ghost {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
   transition: opacity 180ms var(--ease-out), filter 180ms var(--ease-out);
 }
 
 .ghost[data-hidden="true"] { opacity: 0; filter: blur(4px); }
+.hint { color: var(--muted); }
 
-.hint { font-size: 16px; color: var(--muted); }
+.expiry { display: inline-flex; align-items: baseline; gap: var(--space-2); color: var(--muted); }
 
-.giant {
-  font-weight: 300;
-  font-size: var(--giant);
-  line-height: 0.8;
-  letter-spacing: -0.055em;
-  margin: 0 0 0 -0.06em;
-  overflow-wrap: anywhere;
-}
-
-
-/* ---------- Foot row ---------- */
-
-.foot {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 12px 32px;
-  font-size: 14px;
-  border-top: 1px solid var(--ink);
-  padding-top: 16px;
-  margin-top: 24px;
-}
-
-.foot .push { margin-left: auto; }
-/* The primary action stays bottom-right even when the row wraps on narrow screens. */
-.foot > .button { margin-left: auto; }
-.copy-of { color: var(--muted); }
-
-.kind { color: var(--muted); min-width: 170px; }
-.kind b { color: var(--ink); font-weight: 500; }
-
-/* Saving controls, grouped on the right: "Keep forever" then the button. */
-.save { display: inline-flex; align-items: center; gap: 28px; }
-
-/* The shortcut lives inside the button it triggers, quieter than the label. */
-.button .kbd { margin-left: 14px; opacity: 0.5; font-size: 12px; letter-spacing: 0; }
-@media (hover: none) { .button .kbd { display: none; } }
-
-/* Errors arrive gently and sit in the same rhythm as everything else. */
-.notice {
-  width: 100%;
-  color: var(--danger);
-  font-size: 14px;
-  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
-  @starting-style { opacity: 0; transform: translateY(4px); }
-}
-
-/* ---------- Created ---------- */
+/* ---------- Created link: the new short code, as big as the screen allows ---------- */
 
 .created {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   min-height: 0;
-  padding-bottom: 4px;
 }
 
-.created .host { font-size: 16px; color: var(--muted); margin-bottom: 12px; }
+.created .host { color: var(--muted); margin-bottom: var(--space-3); }
 
-/* Room for descenders (g, y, p, q) so they never touch the rule below. */
-.created .giant { padding-bottom: 0.16em; }
+.giant {
+  margin: 0 0 0 -0.06em;       /* optical: pull the first letter's side bearing back to the margin */
+  padding-bottom: 0.16em;      /* room for descenders (g, y, p) above the rule below */
+  font-size: var(--type-giant);
+  font-weight: 300;
+  line-height: 0.8;
+  letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+}
 
 /* The one flourish: the new code rises in a letter at a time. Rare event, so it earns the motion. */
 .rise > span {
@@ -411,16 +428,10 @@ body > #status { display: none !important; }
   animation-delay: calc(var(--i) * 30ms);
 }
 
-@keyframes rise {
-  from { opacity: 0; transform: translateY(0.12em); filter: blur(4px); }
-  to { opacity: 1; transform: none; filter: none; }
-}
-
-/* ---------- Snip view ---------- */
-
+/* ---------- Link view ---------- */
 
 .view { min-height: 0; }
-.backline { padding-bottom: 16px; }
+.backline { padding-bottom: var(--space-4); font-size: var(--type-small); }
 
 /* Details and actions for a snip, stuck to the top of the window while long content scrolls under it. */
 .snip-bar {
@@ -430,25 +441,20 @@ body > #status { display: none !important; }
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px 32px;
-  padding: 14px 0;
-  margin-bottom: 20px;
-  font-size: 14px;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4) 0;
   background: var(--paper);
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--type-small);
 }
-
-.snip-bar .push { margin-left: auto; }
-.snip-bar .actions { display: flex; flex-wrap: wrap; gap: 10px 28px; }
-.foot .actions { display: flex; flex-wrap: wrap; gap: 12px 28px; }
 
 /* Code: one grid row per source line. Long lines wrap within their row, so the number stays beside the line's start. */
 .sheet {
   margin: 0;
-  padding: 4px 0 8px;
   font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.75;
+  font-size: var(--type-code);
+  line-height: var(--leading-code);
   tab-size: 2;
 }
 
@@ -460,7 +466,6 @@ body > #status { display: none !important; }
 
 .sheet .no { color: var(--gutter-ink); text-align: right; user-select: none; }
 .sheet .src { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
-.prose code { font: inherit; }
 
 /* Phones: wrapping code this narrow makes it unreadable, so the code scrolls sideways instead. Text still wraps. */
 @media (max-width: 600px) {
@@ -471,14 +476,15 @@ body > #status { display: none !important; }
 
 .prose {
   margin: 0;
-  padding: 4px 0 8px;
+  max-width: var(--measure);
   font-family: var(--sans);
-  font-size: 18px;
-  line-height: 1.65;
-  max-width: 72ch;
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.prose code { font: inherit; }
 
 /* Syntax */
 .hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-name, .hljs-tag .hljs-name { color: var(--syn-keyword); font-weight: 500; }
@@ -492,169 +498,38 @@ body > #status { display: none !important; }
 .hljs-punctuation, .hljs-operator, .hljs-tag { color: var(--code-punct); }
 .hljs-addition { color: var(--syn-function); }
 .hljs-deletion { color: var(--syn-string); }
-.prose .hljs-section { font-weight: 500; }
-.prose .hljs-strong { font-weight: 500; }
+.prose .hljs-section, .prose .hljs-strong { font-weight: 500; }
 .prose .hljs-emphasis { font-style: italic; }
 .prose .hljs-bullet, .prose .hljs-code { color: var(--muted); }
 .prose .hljs-link { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--underline); }
 
-/* ---------- Empty / error states: the page's own placeholder ---------- */
+/* ---------- Lists of links: one row design everywhere (landing examples, Your links) ---------- */
 
-.state {
-  padding-top: 12vh;
-  min-height: 0;
-}
+.link-list { min-height: 0; overflow: auto; }
 
-.state p { margin: 0; max-width: 46ch; font-size: 18px; }
-.state-actions { display: flex; gap: 28px; margin-top: 18px; }
-.state .lead { color: var(--ink); }
-.state .sub { color: var(--muted); margin-top: 4px; }
-
-.loading { opacity: 0; animation: page-in 200ms var(--ease-out) 300ms both; color: var(--muted); font-size: 14px; }
-
-/* ---------- Recent ---------- */
-
-.recent { min-height: 0; overflow: auto; }
-
-
-.more { padding: 22px 0 4px; }
-
-/* ---------- Menu: a themed replacement for <select>, opening upward from its trigger ---------- */
-
-.expiry { color: var(--muted); display: inline-flex; align-items: baseline; gap: 6px; }
-
-.menu { position: relative; display: inline-block; }
-
-.menu-list {
-  position: absolute;
-  right: -12px;
-  bottom: calc(100% + 12px);
-  z-index: 10;
-  min-width: 190px;
-  max-height: min(340px, 55vh);
-  overflow-y: auto;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  background: var(--surface);
-  border: 1px solid var(--surface-edge);
-  box-shadow: var(--surface-shadow);
-  outline: none;
-  /* Grows from the trigger below its right edge. Enter 160ms, leave faster at 120ms. */
-  transform-origin: calc(100% - 24px) 100%;
-  opacity: 0;
-  transform: translateY(4px) scale(0.97);
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out), visibility 0s linear 120ms;
-}
-
-.menu-list[data-open="true"] {
-  opacity: 1;
-  transform: none;
-  visibility: visible;
-  pointer-events: auto;
-  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), visibility 0s;
-}
-
-/* Opens from the trigger's left edge instead, for menus near the left of the screen. */
-.menu-list.start { left: -12px; right: auto; transform-origin: 24px 100%; }
-
-.menu-list li {
-  padding: 9px 12px;
-  font-size: 14px;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.menu-list li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
-.menu-list li.active { background: var(--surface-hover); color: var(--ink); }
-
-@media (prefers-reduced-motion: reduce) {
-  .menu-list, .menu-list[data-open="true"] { transform: none; }
-}
-
-/* ---------- Sign in ---------- */
-
-.auth { max-width: 440px; display: flex; flex-direction: column; gap: 28px; }
-.auth .lead { font-size: 20px; line-height: 1.45; }
-
-.field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--muted); }
-
-.field input {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--hairline);
-  border-radius: 0;
-  padding: 10px 0;
-  font: inherit;
-  font-size: 18px;
-  color: var(--ink);
-  caret-color: var(--ink);
-  transition: border-color 150ms ease;
-}
-
-.field input:focus { outline: none; border-bottom-color: var(--ink); }
-.field input:-webkit-autofill {
-  -webkit-text-fill-color: var(--ink);
-  -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
-  caret-color: var(--ink);
-}
-
-.field-hint { font-size: 13px; color: var(--muted); }
-.auth-actions { display: flex; align-items: baseline; gap: 28px; margin-top: 4px; }
-
-/* ---------- Landing ---------- */
-
-.landing { display: flex; flex-direction: column; gap: 14vh; padding: 10vh 0 6vh; }
-
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6vw;
-  align-items: end;
-}
-
-@media (max-width: 960px) {
-  .hero { grid-template-columns: 1fr; gap: 56px; }
-  .landing { padding-top: 6vh; gap: 10vh; }
-}
-
-.statement {
-  margin: 0;
-  font-weight: 300;
-  font-size: clamp(44px, 6vw, 96px);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
-  max-width: 12ch;
-  text-wrap: balance;
-}
-
-.lede { margin: 28px 0 0; max-width: 44ch; font-size: 19px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
-
-.cta { display: flex; align-items: baseline; gap: 28px; margin-top: 40px; }
-.cta .button { text-decoration: none; display: inline-block; }
-
-/* ---------- Snip rows: one design for every list of links (landing page, Your links) ---------- */
-
-.snip-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
+.snip-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
 
 .snip-rows li {
   position: relative;
   display: grid;
   grid-template-columns: 5ch minmax(0, 1fr) auto auto;
-  gap: 24px;
+  gap: var(--space-5);
   align-items: baseline;
-  padding: 18px 0;
+  padding: var(--space-4) 0;
   border-bottom: 1px solid var(--hairline);
-  font-size: 15px;
+  font-size: var(--type-small);
 }
 
-.row-kind { color: var(--muted); font-size: 13px; }
-.row-src { font-family: var(--mono); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.row-kind, .row-detail { color: var(--muted); white-space: nowrap; }
+.row-src {
+  font-family: var(--mono);
+  font-size: var(--type-code);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
 .row-src code { font: inherit; }
-.row-detail { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .row-to { font-weight: 500; white-space: nowrap; }
 .row-host { color: var(--muted); font-weight: 400; }
 
@@ -662,14 +537,18 @@ body > #status { display: none !important; }
 .row-link { color: inherit; text-decoration: none; }
 .row-link::after { content: ""; position: absolute; inset: 0; }
 .row-link:focus-visible { outline: none; }
-.snip-rows li:has(.row-link:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+.snip-rows li:has(.row-link:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: var(--space-1); }
 
 @media (hover: hover) and (pointer: fine) {
   .snip-rows li:has(.row-link) { cursor: pointer; }
   .snip-rows li:has(.row-link):hover .row-to { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 }
 
-.snip-rows li.dimmed .row-src, .snip-rows li.dimmed .row-to { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--underline); }
+.snip-rows li.dimmed .row-src, .snip-rows li.dimmed .row-to {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--underline);
+}
 
 /* Landing only: the examples rise in once, staggered. Lists people revisit stay still. */
 .snip-rows.rise-in li { animation: rise 320ms var(--ease-out) both; animation-delay: calc(120ms + var(--i) * 60ms); }
@@ -679,39 +558,185 @@ body > #status { display: none !important; }
   .row-kind, .row-detail { display: none; }
 }
 
-.features { margin: 0; border-top: 1px solid var(--ink); }
+.more { padding-top: var(--space-5); }
+
+/* ---------- Menu: a themed replacement for <select>, opening upward from its trigger ---------- */
+
+.menu { position: relative; display: inline-block; }
+
+.menu-list {
+  position: absolute;
+  right: calc(-1 * var(--space-3));
+  bottom: calc(100% + var(--space-3));
+  z-index: 10;
+  min-width: 12rem;
+  max-height: min(21rem, 55vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--surface-edge);
+  box-shadow: var(--surface-shadow);
+  /* Grows from the trigger below its right edge. Enters, then leaves a little faster. */
+  transform-origin: calc(100% - var(--space-5)) 100%;
+  opacity: 0;
+  transform: translateY(var(--space-1)) scale(0.97);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--leave) var(--ease-out), transform var(--leave) var(--ease-out), visibility 0s linear var(--leave);
+}
+
+.menu-list[data-open="true"] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity var(--enter) var(--ease-out), transform var(--enter) var(--ease-out), visibility 0s;
+}
+
+/* Opens from the trigger's left edge instead, for menus near the left of the screen. */
+.menu-list.start { left: calc(-1 * var(--space-3)); right: auto; transform-origin: var(--space-5) 100%; }
+
+.menu-list li {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--type-small);
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menu-list li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
+.menu-list li.active { background: var(--surface-hover); color: var(--ink); }
+
+/* ---------- Sign in ---------- */
+
+.auth { display: flex; flex-direction: column; gap: var(--space-6); max-width: 28rem; }
+.auth .lead { margin: 0; font-size: var(--type-lead); line-height: var(--leading-lead); }
+
+.field { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--type-small); color: var(--muted); }
+
+.field input {
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  font: inherit;
+  font-size: var(--type-reading);
+  color: var(--ink);
+  caret-color: var(--ink);
+  transition: border-color var(--fast) ease;
+}
+
+.field input:focus { outline: none; border-bottom-color: var(--ink); }
+.field input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
+  caret-color: var(--ink);
+}
+
+.field-hint { color: var(--muted); }
+
+.auth-actions { display: flex; align-items: center; gap: var(--space-5); }
+
+/* ---------- Landing ---------- */
+
+.landing { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-8) 0 var(--space-7); }
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: end;
+}
+
+/* Side by side only when the examples get enough width to show their content, not just an ellipsis. */
+@media (max-width: 1199px) {
+  .hero { grid-template-columns: 1fr; gap: var(--space-7); }
+}
+
+@media (max-width: 640px) {
+  .landing { padding-top: var(--space-6); gap: var(--space-7); }
+}
+
+.statement {
+  margin: 0;
+  max-width: 12ch;
+  font-size: var(--type-display);
+  font-weight: 300;
+  line-height: var(--leading-tight);
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+
+.lede {
+  margin: var(--space-5) 0 0;
+  max-width: 44ch;
+  font-size: var(--type-lead);
+  line-height: var(--leading-lead);
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.cta { display: flex; align-items: center; gap: var(--space-5); margin-top: var(--space-6); }
+
+.features { margin: 0; border-top: 1px solid var(--rule); }
 
 .feature {
   display: grid;
   grid-template-columns: minmax(8ch, 1fr) 3fr;
-  gap: 24px;
-  padding: 26px 0;
+  gap: var(--space-5);
+  padding: var(--space-5) 0;
   border-bottom: 1px solid var(--hairline);
+  font-size: var(--type-reading);
+  line-height: var(--leading-reading);
 }
 
-.feature dt { font-size: 18px; font-weight: 500; }
-.feature dd { margin: 0; font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 56ch; }
+.feature dt { font-weight: 500; }
+.feature dd { margin: 0; max-width: 56ch; color: var(--muted); text-wrap: pretty; }
 
 @media (max-width: 560px) {
-  .feature { grid-template-columns: 1fr; gap: 6px; }
+  .feature { grid-template-columns: 1fr; gap: var(--space-1); }
 }
 
 .site-foot {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
-  color: var(--muted);
-  padding-top: 18px;
+  padding-top: var(--space-4);
   border-top: 1px solid var(--hairline);
+  font-size: var(--type-small);
+  color: var(--muted);
 }
 
-/* ---------- Reduced motion: fewer, gentler. Fades stay, movement goes. ---------- */
+/* ---------- Empty and error states: one plain sentence, a quieter one, what to do next ---------- */
 
+.state { padding-top: 12vh; min-height: 0; font-size: var(--type-reading); line-height: var(--leading-reading); }
+.state p { margin: 0; max-width: 46ch; }
+.state .sub { margin-top: var(--space-1); color: var(--muted); }
+.state-actions { display: flex; gap: var(--space-5); margin-top: var(--space-5); }
+
+/* Hidden for the first 300ms, so fast loads never flash a loading label. */
+.loading { color: var(--muted); font-size: var(--type-small); animation: fade var(--enter) var(--ease-out) 300ms both; }
+
+/* ---------- Motion ---------- */
+
+/* Content that arrives after a request (a link, your list, an error, the new link) fades in rather than popping.
+   Opacity only and short: these screens are visited often, so the motion should be felt more than seen. */
+.view, .link-list, .state, .created, .created + .foot { animation: fade var(--enter) var(--ease-out) both; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(0.12em); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* Reduced motion: fewer, gentler. Fades stay, movement goes. */
 @media (prefers-reduced-motion: reduce) {
   .rise > span, .snip-rows.rise-in li { animation-name: fade; animation-delay: 0ms; }
   .ghost, .ghost[data-hidden="true"] { filter: none; }
   .button:active:not(:disabled) { transform: none; }
+  .menu-list, .menu-list[data-open="true"] { transform: none; }
   .notice { @starting-style { transform: none; } }
 }
-
-@keyframes fade { from { opacity: 0; } to { opacity: 1; } }

@@ -19,3 +19,7 @@ fun formatDate(epochMillis: Double): String {
 
 /** "https://snip.example/abc1234" → "snip.example/" so the slug can be set apart from its host. */
 fun hostPrefix(url: String): String = url.substringAfter("://").substringBeforeLast('/') + "/"
+
+/** For text shown through innerHTML when there's no highlighter output to use instead. */
+fun escapeHtml(text: String): String =
+    text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")

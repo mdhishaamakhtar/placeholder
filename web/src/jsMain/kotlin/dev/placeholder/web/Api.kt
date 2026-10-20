@@ -11,6 +11,7 @@ import dev.placeholder.shared.SnipDto
 import dev.placeholder.shared.SnipPage
 import dev.placeholder.shared.UpdateSnipRequest
 import kotlinx.browser.window
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.await
 import kotlinx.serialization.json.Json
 import org.w3c.fetch.RequestInit
@@ -76,8 +77,11 @@ object Api {
         return response.ensureOk()
     }
 
+    /** fetch() rejects only when the request never got an answer (offline, DNS, CORS); that's what this reports. */
     private suspend fun request(block: suspend () -> Response): Response = try {
         block()
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Throwable) {
         throw ApiException(0, "Couldn't reach the server. Check your connection and try again.")
     }

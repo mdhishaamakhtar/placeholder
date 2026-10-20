@@ -3,6 +3,7 @@ package dev.placeholder.web.pages
 import androidx.compose.runtime.Composable
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.navigation.Anchor
+import dev.placeholder.shared.Paths
 import dev.placeholder.shared.Rules
 import dev.placeholder.web.Session
 import dev.placeholder.web.components.RowTarget
@@ -33,7 +34,7 @@ private val EXAMPLES = listOf(
 @Composable
 fun LandingPage() {
     val signedIn = Session.me != null
-    val start = if (signedIn) "/new" else signinPath(create = true, next = "/new")
+    val start = if (signedIn) Paths.NEW else Paths.signIn(create = true)
 
     Shell {
         Div({ classes("landing") }) {
@@ -49,9 +50,9 @@ fun LandingPage() {
                     Div({ classes("cta") }) {
                         Anchor(start, { classes("button") }) { Text(if (signedIn) "New link" else "Get started") }
                         if (signedIn) {
-                            Anchor("/links", { classes("act") }) { Text("Your links") }
+                            Anchor(Paths.LINKS, { classes("act") }) { Text("Your links") }
                         } else if (Session.ready) {
-                            Anchor(signinPath(next = "/new"), { classes("act") }) { Text("Sign in") }
+                            Anchor(Paths.signIn(), { classes("act") }) { Text("Sign in") }
                         }
                     }
                 }

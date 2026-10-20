@@ -31,7 +31,8 @@ class Maintenance(
     }
 
     suspend fun runOnce() {
-        if (redis != null && !redis.setIfAbsent(LOCK, 55 * 60, "1") && redis.ping()) return
+        // Another instance holds this hour's lock: it's doing the work. No Redis (null): run anyway, deletes are idempotent.
+        if (redis?.setIfAbsent(LOCK, LOCK_SECONDS, "1") == false) return
         try {
             val removedSnips = snips.deleteExpired()
             val removedSessions = accounts.cleanUp()
@@ -43,5 +44,6 @@ class Maintenance(
 
     private companion object {
         const val LOCK = "lock:maintenance"
+        const val LOCK_SECONDS = 55 * 60L
     }
 }

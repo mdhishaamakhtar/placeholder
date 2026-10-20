@@ -11,10 +11,12 @@ import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
 import dev.placeholder.shared.SnipDto
+import dev.placeholder.shared.Languages
+import dev.placeholder.shared.Paths
 import dev.placeholder.shared.SnipKind
 import dev.placeholder.web.Api
 import dev.placeholder.web.ApiException
-import dev.placeholder.web.Detection
+import dev.placeholder.web.escapeHtml
 import dev.placeholder.web.Navigation
 import dev.placeholder.web.components.CopyAction
 import dev.placeholder.web.components.HtmlCode
@@ -67,7 +69,7 @@ fun SnipPage() {
                 lead = "This link has expired.",
                 sub = "Whoever made it chose for it to stop working after a while.",
             ) {
-                Anchor("/", { classes("act") }) { Text("What is placeholder?") }
+                Anchor(Paths.HOME, { classes("act") }) { Text("What is placeholder?") }
             }
         }
         is Load.Failed -> Shell(title = "Unavailable") {
@@ -89,7 +91,7 @@ fun MissingScreen(path: String) {
             lead = "Nothing lives at $path.",
             sub = "The link may be mistyped, or it was never made.",
         ) {
-            Anchor("/", { classes("act") }) { Text("Go to placeholder") }
+            Anchor(Paths.HOME, { classes("act") }) { Text("Go to placeholder") }
         }
     }
 }
@@ -103,7 +105,7 @@ private fun SnipView(snip: SnipDto) {
         return
     }
 
-    val label = Detection(snip.language, isLink = false).label
+    val label = Languages.name(snip.language)
     val url = "${window.location.origin}/${snip.slug}"
 
     val details = buildList {
@@ -116,7 +118,7 @@ private fun SnipView(snip: SnipDto) {
     Shell(title = label) {
         Div({ classes("view") }) {
             // Came here from your list: offer the way back, through history so the list keeps its place.
-            if (Navigation.previous == "/links") {
+            if (Navigation.previous == Paths.LINKS) {
                 Div({ classes("backline") }) {
                     Button({
                         classes("act")
@@ -134,11 +136,11 @@ private fun SnipView(snip: SnipDto) {
                 Div({ classes("actions", "push") }) {
                     CopyAction(snip.content, label = "Copy", done = "Copied")
                     CopyAction(url)
-                    A("/${snip.slug}/raw", { classes("act") }) { Text("Raw") }
+                    A(Paths.raw(snip.slug), { classes("act") }) { Text("Raw") }
                     if (snip.owned) {
-                        Anchor("/new?edit=${snip.slug}", { classes("act") }) { Text("Edit") }
+                        Anchor(Paths.edit(snip.slug), { classes("act") }) { Text("Edit") }
                     } else {
-                        Anchor("/new?from=${snip.slug}", { classes("act") }) { Text("Edit a copy") }
+                        Anchor(Paths.copyOf(snip.slug), { classes("act") }) { Text("Edit a copy") }
                     }
                 }
             }
@@ -163,8 +165,6 @@ private fun CodeSheet(snip: SnipDto) {
     }
 }
 
-private fun escapeHtml(text: String): String =
-    text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 @Composable
 private fun ProseSheet(snip: SnipDto) {

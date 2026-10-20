@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
+import dev.placeholder.shared.Paths
 import dev.placeholder.web.Navigation
 import dev.placeholder.web.Session
 import dev.placeholder.web.Theme
@@ -34,15 +35,15 @@ fun Shell(title: String? = null, content: @Composable () -> Unit) {
 
     Div({ classes("frame") }) {
         Header({ classes("bar") }) {
-            Anchor("/", { classes("mark") }) { Text("placeholder") }
+            Anchor(Paths.HOME, { classes("mark") }) { Text("placeholder") }
             Nav({ classes("nav") }) {
                 // Wait for the session check so the nav doesn't flicker between signed-out and signed-in.
                 if (Session.ready) {
                     if (Session.me != null) {
-                        NavLink("/new", "New", path)
-                        NavLink("/links", "Your links", path)
+                        NavLink(Paths.NEW, "New", path)
+                        NavLink(Paths.LINKS, "Your links", path)
                     } else {
-                        NavLink("/signin", "Sign in", path)
+                        NavLink(Paths.SIGN_IN, "Sign in", path)
                     }
                 }
                 ThemeToggle()

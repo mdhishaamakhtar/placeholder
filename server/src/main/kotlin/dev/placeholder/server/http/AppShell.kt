@@ -7,6 +7,9 @@ import io.ktor.http.withCharset
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.response.header
 import io.ktor.server.response.respondText
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import java.io.File
 
 /** What link previews and search engines see for a page. Crawlers don't run the app, so this is server-rendered. */
@@ -33,25 +36,29 @@ data class PageMeta(
 }
 
 /**
- * The web app's index.html, with two things written in per request: the visitor's theme (from a cookie, so
- * light-theme visitors never see a dark first frame) and the page's meta tags.
+ * Serves the web app's index.html with two things filled in per request: the page's meta tags, and the visitor's
+ * theme (from a cookie, so light-theme visitors never see a dark first frame while the app's script loads).
+ *
+ * The file Kobweb generates is parsed once into an HTML document and edited through the DOM, never by matching
+ * strings, so a change in how Kobweb formats its output can't silently break what crawlers see.
  */
 class AppShell(webRoot: File?, private val publicBaseUrl: String) {
     private val index = webRoot?.resolve("index.html")?.takeIf { it.isFile }
 
     @Volatile
-    private var cached: Pair<Long, String>? = null
+    private var cached: Pair<Long, Document>? = null
 
-    private fun template(): String? {
+    private fun template(): Document? {
         val file = index ?: return null
         val modified = file.lastModified()
-        cached?.let { (at, html) -> if (at == modified) return html }
-        // Kobweb writes its own title and description; ours replace them per page.
-        val html = file.readText()
-            .replace(Regex("<title>.*?</title>\\s*"), "")
-            .replace(Regex("<meta content=\"[^\"]*\" name=\"description\">\\s*"), "")
-        cached = modified to html
-        return html
+        cached?.let { (at, doc) -> if (at == modified) return doc }
+        val doc = Jsoup.parse(file, Charsets.UTF_8.name()).apply {
+            outputSettings().prettyPrint(false)
+            // Kobweb writes a site-wide title and description; each page supplies its own instead.
+            head().select("title, meta[name=description], meta[name=theme-color]").remove()
+        }
+        cached = modified to doc
+        return doc
     }
 
     suspend fun respond(call: ApplicationCall, status: HttpStatusCode, meta: PageMeta) {
@@ -60,59 +67,55 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
             call.respondText("placeholder API is running. Build the web app to see the page.", status = status)
             return
         }
-        var html = template.replaceFirst("</head>", metaTags(meta) + "</head>")
-        if (call.request.cookies[THEME_COOKIE] == "light") {
-            html = html
-                .replaceFirst("<html lang=\"en\">", "<html lang=\"en\" data-theme=\"light\">")
-                .replaceFirst("content=\"$DARK_CHROME\"", "content=\"$LIGHT_CHROME\"")
-        }
+        val theme = if (call.request.cookies[THEME_COOKIE] == "light") Theme.LIGHT else Theme.DARK
+        val page = template.clone()
+        page.selectFirst("html")?.attr("data-theme", theme.attribute)
+        writeMeta(page.head(), meta, theme)
+
         call.response.header(HttpHeaders.CacheControl, "no-cache")
         call.response.header(HttpHeaders.Vary, "Cookie")
-        call.respondText(html, ContentType.Text.Html.withCharset(Charsets.UTF_8), status)
+        call.respondText(page.outerHtml(), ContentType.Text.Html.withCharset(Charsets.UTF_8), status)
     }
 
-    private fun metaTags(meta: PageMeta): String {
+    /** jsoup escapes every attribute value and text node it writes, so page content can't break out of a tag. */
+    private fun writeMeta(head: Element, meta: PageMeta, theme: Theme) {
         val url = publicBaseUrl + meta.path
         val image = publicBaseUrl + meta.image
-        val title = escape(meta.title)
-        val description = escape(meta.description)
-        return buildString {
-            append("<title>$title</title>\n")
-            append("""<meta name="description" content="$description">""").append('\n')
-            append("""<link rel="canonical" href="${escape(url)}">""").append('\n')
-            if (!meta.indexable) append("""<meta name="robots" content="noindex">""").append('\n')
-            append("""<meta property="og:site_name" content="placeholder">""").append('\n')
-            append("""<meta property="og:type" content="website">""").append('\n')
-            append("""<meta property="og:title" content="$title">""").append('\n')
-            append("""<meta property="og:description" content="$description">""").append('\n')
-            append("""<meta property="og:url" content="${escape(url)}">""").append('\n')
-            append("""<meta property="og:image" content="${escape(image)}">""").append('\n')
-            append("""<meta property="og:image:width" content="1200">""").append('\n')
-            append("""<meta property="og:image:height" content="630">""").append('\n')
-            append("""<meta property="og:image:alt" content="${escape(meta.imageAlt)}">""").append('\n')
-            append("""<meta name="twitter:card" content="summary_large_image">""").append('\n')
-            append("""<meta name="twitter:title" content="$title">""").append('\n')
-            append("""<meta name="twitter:description" content="$description">""").append('\n')
-            append("""<meta name="twitter:image" content="${escape(image)}">""").append('\n')
-        }
+        head.appendElement("title").text(meta.title)
+        head.named("description", meta.description)
+        head.named("theme-color", theme.chrome)
+        head.appendElement("link").attr("rel", "canonical").attr("href", url)
+        if (!meta.indexable) head.named("robots", "noindex")
+        head.property("og:site_name", "placeholder")
+        head.property("og:type", "website")
+        head.property("og:title", meta.title)
+        head.property("og:description", meta.description)
+        head.property("og:url", url)
+        head.property("og:image", image)
+        head.property("og:image:width", "1200")
+        head.property("og:image:height", "630")
+        head.property("og:image:alt", meta.imageAlt)
+        head.named("twitter:card", "summary_large_image")
+        head.named("twitter:title", meta.title)
+        head.named("twitter:description", meta.description)
+        head.named("twitter:image", image)
     }
 
-    private fun escape(value: String): String = buildString(value.length) {
-        for (c in value) {
-            when (c) {
-                '&' -> append("&amp;")
-                '<' -> append("&lt;")
-                '>' -> append("&gt;")
-                '"' -> append("&quot;")
-                '\'' -> append("&#39;")
-                else -> append(c)
-            }
-        }
+    private fun Element.named(name: String, content: String) {
+        appendElement("meta").attr("name", name).attr("content", content)
+    }
+
+    private fun Element.property(property: String, content: String) {
+        appendElement("meta").attr("property", property).attr("content", content)
+    }
+
+    /** Mirrors the browser's own Theme in the web module: the attribute the CSS keys on, and the browser chrome color. */
+    private enum class Theme(val attribute: String, val chrome: String) {
+        DARK("dark", "#000000"),
+        LIGHT("light", "#FFFFFF"),
     }
 
     private companion object {
         const val THEME_COOKIE = "theme"
-        const val DARK_CHROME = "#000000"
-        const val LIGHT_CHROME = "#FFFFFF"
     }
 }

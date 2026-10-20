@@ -1,5 +1,6 @@
 package dev.placeholder.web
 
+import dev.placeholder.shared.Languages
 import dev.placeholder.shared.Rules
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -24,8 +25,7 @@ private external interface HighlightResult {
 data class Detection(val language: String?, val isLink: Boolean) {
     val label: String get() = when {
         isLink -> "Link"
-        language == null -> "Text"
-        else -> LABELS[language] ?: language.replaceFirstChar { it.uppercase() }
+        else -> Languages.name(language)
     }
 
     /** The language name the server's formatter understands, if it can format this at all. */
@@ -38,13 +38,6 @@ data class Detection(val language: String?, val isLink: Boolean) {
 
 private val HTML_HINT = Regex("<!doctype|<html|<(div|span|p|a|body|head|section|main|ul|li|img|button)[\\s>]", RegexOption.IGNORE_CASE)
 
-private val LABELS = mapOf(
-    "json" to "JSON", "sql" to "SQL", "xml" to "HTML / XML", "css" to "CSS", "javascript" to "JavaScript",
-    "typescript" to "TypeScript", "kotlin" to "Kotlin", "java" to "Java", "python" to "Python", "go" to "Go",
-    "rust" to "Rust", "bash" to "Shell", "shell" to "Shell", "yaml" to "YAML", "markdown" to "Markdown",
-    "cpp" to "C++", "c" to "C", "csharp" to "C#", "php" to "PHP", "ruby" to "Ruby", "swift" to "Swift",
-    "ini" to "Config", "dockerfile" to "Dockerfile", "diff" to "Diff", "graphql" to "GraphQL",
-)
 
 private val SUBSET = arrayOf(
     "sql", "json", "kotlin", "java", "python", "javascript", "typescript", "xml", "css", "bash", "go", "rust",
@@ -154,12 +147,6 @@ fun highlightLines(content: String, language: String?): List<String>? {
     return lines
 }
 
-/** Every language the editor can be told a paste is, for when detection guesses wrong. */
-val LANGUAGE_CHOICES: List<Pair<String?, String>> = listOf(null to "Text", "markdown" to "Markdown") +
-    listOf(
-        "json", "sql", "kotlin", "java", "python", "javascript", "typescript", "go", "rust", "c", "cpp", "csharp",
-        "php", "ruby", "swift", "xml", "css", "yaml", "bash", "ini", "diff", "graphql",
-    ).map { it to (LABELS[it] ?: it.replaceFirstChar(Char::uppercase)) }
 
 /** Highlighted HTML for display. highlight.js escapes the source, so the result is safe to set as innerHTML. */
 fun highlightHtml(content: String, language: String?): String? {

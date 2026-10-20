@@ -40,15 +40,31 @@ class Redis(url: String) : AutoCloseable {
         }
     }
 
+    /** Like [call], but tells "Redis answered nothing" (a missing key, a refused NX) apart from "Redis didn't answer". */
+    private suspend fun <T> runCatchingRedis(block: (RedisAsyncCommands<String, String>) -> CompletionStage<T>): Reply<T>? {
+        val cmd = commands ?: return null
+        return try {
+            withTimeoutOrNull(TIMEOUT) { Reply(block(cmd).await()) }
+        } catch (e: RedisException) {
+            log.debug("Redis call failed: {}", e.message)
+            null
+        }
+    }
+
+    private class Reply<T>(val value: T?)
+
     suspend fun get(key: String): String? = call { it.get(key) }
 
     suspend fun setEx(key: String, seconds: Long, value: String) {
         call { it.set(key, value, SetArgs.Builder.ex(seconds)) }
     }
 
-    /** Sets the key only if nobody holds it. Returns false when it's taken or Redis is unavailable. */
-    suspend fun setIfAbsent(key: String, seconds: Long, value: String): Boolean =
-        call { it.set(key, value, SetArgs.Builder.nx().ex(seconds)) } == "OK"
+    /** Sets the key only if nobody holds it: true if we set it, false if it's taken, null if Redis is unavailable. */
+    suspend fun setIfAbsent(key: String, seconds: Long, value: String): Boolean? {
+        if (commands == null) return null
+        val reply = runCatchingRedis { it.set(key, value, SetArgs.Builder.nx().ex(seconds)) } ?: return null
+        return reply.value == "OK"
+    }
 
     suspend fun delete(key: String) {
         call { it.del(key) }

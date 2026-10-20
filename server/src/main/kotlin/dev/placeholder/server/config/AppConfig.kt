@@ -15,7 +15,7 @@ data class AppConfig(
     val createsPerMinute: Long,
     val trustProxyHeaders: Boolean,
     /** Sign-ups and sign-ins per minute, per client. Argon2 is costly by design, so this stays tight. */
-    val authPerMinute: Long = 10,
+    val authPerMinute: Long,
 ) {
     /** Session cookies are marked Secure whenever the site is served over HTTPS. */
     val secureCookies: Boolean get() = publicBaseUrl.startsWith("https://")

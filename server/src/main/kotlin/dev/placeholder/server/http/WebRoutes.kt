@@ -6,6 +6,8 @@ import dev.placeholder.server.og.PreviewCards
 import dev.placeholder.server.snip.Lookup
 import dev.placeholder.server.snip.Snip
 import dev.placeholder.server.snip.SnipService
+import dev.placeholder.shared.Languages
+import dev.placeholder.shared.Paths
 import dev.placeholder.shared.Rules
 import dev.placeholder.shared.SnipKind
 import io.ktor.http.CacheControl
@@ -80,8 +82,10 @@ fun Route.webRoutes(snips: SnipService, webRoot: File?, shell: AppShell, cards: 
     }
 
     // The app's own pages. Any other path falls through to the 404 handler, which still renders the app.
-    APP_PAGES.forEach { (path, title) ->
-        get(path) { shell.respond(call, HttpStatusCode.OK, PageMeta.page(title, path, indexable = path in PUBLIC_PAGES)) }
+    Paths.PAGES.forEach { path ->
+        require(path in PAGE_TITLES) { "No page title for $path" }
+        val meta = PageMeta.page(PAGE_TITLES[path], path, indexable = path in INDEXABLE_PAGES)
+        get(path) { shell.respond(call, HttpStatusCode.OK, meta) }
     }
 
     if (webRoot != null) {
@@ -96,7 +100,7 @@ fun Route.webRoutes(snips: SnipService, webRoot: File?, shell: AppShell, cards: 
 
 /** A shared snippet previews as itself: its kind and size in the title, its opening line as the description. */
 private fun snipMeta(snip: Snip): PageMeta {
-    val kind = snip.language?.let { LANGUAGE_NAMES[it] ?: it.replaceFirstChar(Char::uppercase) } ?: "Text"
+    val kind = Languages.name(snip.language)
     val size = if (snip.lines == 1) "1 line" else "${snip.lines} lines"
     val opening = snip.content.take(400).replace(Regex("\\s+"), " ").trim().take(160)
     return PageMeta(
@@ -110,12 +114,14 @@ private fun snipMeta(snip: Snip): PageMeta {
     )
 }
 
-private val APP_PAGES = listOf("/" to null, "/new" to "New link", "/signin" to "Sign in", "/links" to "Your links")
-private val PUBLIC_PAGES = setOf("/")
-
-private val LANGUAGE_NAMES = mapOf(
-    "json" to "JSON", "sql" to "SQL", "xml" to "HTML / XML", "css" to "CSS", "javascript" to "JavaScript",
-    "typescript" to "TypeScript", "kotlin" to "Kotlin", "java" to "Java", "python" to "Python", "go" to "Go",
-    "rust" to "Rust", "bash" to "Shell", "yaml" to "YAML", "markdown" to "Markdown", "cpp" to "C++",
-    "csharp" to "C#", "php" to "PHP", "ruby" to "Ruby", "swift" to "Swift",
+/** Page titles for the fixed pages. Every path in [Paths.PAGES] must have an entry (checked at startup). */
+private val PAGE_TITLES: Map<String, String?> = mapOf(
+    Paths.HOME to null,
+    Paths.NEW to "New link",
+    Paths.SIGN_IN to "Sign in",
+    Paths.LINKS to "Your links",
 )
+
+/** Only the landing page belongs in search results; the rest is personal or transient. */
+private val INDEXABLE_PAGES = setOf(Paths.HOME)
+

@@ -1,6 +1,5 @@
 import com.varabyte.kobweb.gradle.application.util.configAsKobwebApplication
 import kotlinx.html.link
-import kotlinx.html.meta
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -15,10 +14,9 @@ version = "0.1.0"
 kobweb {
     app {
         index {
-            description.set("Paste a link, code, or text. Get a short link.")
             faviconPath.set("/favicon.svg")
+            // Title, description, theme color, and link-preview tags are written per page by the server (AppShell).
             head.add {
-                meta(name = "theme-color", content = "#000000")
                 // The two faces every page uses first, fetched alongside the CSS instead of after it.
                 link(rel = "preload", href = "/fonts/hanken-grotesk-400.woff2") {
                     attributes["as"] = "font"

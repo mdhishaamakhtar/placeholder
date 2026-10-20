@@ -1,6 +1,7 @@
 package dev.placeholder.server.og
 
 import dev.placeholder.server.snip.Snip
+import dev.placeholder.shared.Languages
 import dev.placeholder.shared.SnipKind
 import java.awt.AlphaComposite
 import java.awt.Color
@@ -54,7 +55,7 @@ class PreviewCards(private val host: String) {
     }
 
     private fun drawSnip(g: Graphics2D, snip: Snip) {
-        val label = (LABELS[snip.language] ?: snip.language?.replaceFirstChar { it.uppercase() } ?: "Text") +
+        val label = Languages.name(snip.language) +
             ", " + if (snip.lines == 1) "1 line" else "${snip.lines} lines"
         header(g, right = label)
         rule(g, 120, HAIRLINE)
@@ -173,12 +174,5 @@ class PreviewCards(private val host: String) {
         private val MUTED = Color(0x8A, 0x8A, 0x8A)
         private val HAIRLINE = Color(0x26, 0x26, 0x26)
         private val GUTTER = Color(0x4D, 0x4D, 0x4D)
-
-        private val LABELS = mapOf(
-            "json" to "JSON", "sql" to "SQL", "xml" to "HTML / XML", "css" to "CSS", "javascript" to "JavaScript",
-            "typescript" to "TypeScript", "kotlin" to "Kotlin", "java" to "Java", "python" to "Python", "go" to "Go",
-            "rust" to "Rust", "bash" to "Shell", "yaml" to "YAML", "markdown" to "Markdown", "cpp" to "C++",
-            "csharp" to "C#", "php" to "PHP", "ruby" to "Ruby", "swift" to "Swift",
-        )
     }
 }
