@@ -1,0 +1,31 @@
+# Every value can be overridden with the environment variable named before the colon.
+# The defaults work as-is on a laptop running Postgres and Redis on their usual ports.
+
+ktor:
+  deployment:
+    port: "$PORT:8080"
+  application:
+    modules:
+      - dev.placeholder.server.ApplicationKt.module
+
+placeholder:
+  publicBaseUrl: "$PUBLIC_BASE_URL:http://localhost:8080"
+  # Folder with the built web app. Leave empty to run the API on its own.
+  webRoot: "$WEB_ROOT:"
+  # Set to true only when running behind a proxy you control (nginx, a load balancer, a CDN).
+  trustProxyHeaders: "$TRUST_PROXY_HEADERS:false"
+
+  database:
+    url: "$DATABASE_URL:jdbc:postgresql://localhost:5432/placeholder"
+    user: "$DATABASE_USER:placeholder"
+    password: "$DATABASE_PASSWORD:placeholder"
+    poolSize: "$DATABASE_POOL_SIZE:16"
+
+  redis:
+    # Leave empty to run without Redis. The app still works, just without the shared cache and rate limits.
+    url: "$REDIS_URL:redis://localhost:6379"
+
+  rateLimit:
+    createsPerMinute: "$CREATES_PER_MINUTE:30"
+    # Sign-ups and sign-ins. Password hashing is deliberately slow, so keep this low.
+    authPerMinute: "$AUTH_PER_MINUTE:10"

@@ -1,0 +1,717 @@
+/* placeholder: black, white, one grey. Type does the work; motion only confirms. */
+
+/* Self-hosted, so pages never wait on a third-party font server. */
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/hanken-grotesk-300.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/hanken-grotesk-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Hanken Grotesk";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/hanken-grotesk-500.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/geist-mono-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/geist-mono-500.woff2") format("woff2");
+}
+
+
+:root {
+  color-scheme: dark;
+
+  /* Dark is the default theme. */
+  --ink: #EDEDED;
+  --paper: #000000;
+  --muted: #8A8A8A;      /* 6.4:1 on paper: secondary text */
+  --hairline: #1F1F1F;
+  --ghost: #151515;      /* decorative only, never carries meaning */
+  --danger: #E8A0A0;
+  --underline: #4A4A4A;
+  --gutter-ink: #4D4D4D;
+  --code-punct: #A6A6A6;
+  --scroll: #333333;
+  --focus-ring: #5A5A5A;
+  --surface: #0C0C0C;
+  --surface-edge: #262626;
+  --surface-hover: #1A1A1A;
+  --surface-shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.9);
+
+  /* Syntax, dark: after Xcode's default dark theme. Every hue clears 4.5:1 on black. */
+  --syn-keyword: #FF7AB2;
+  --syn-string: #FC6A5D;
+  --syn-number: #D9C97C;
+  --syn-comment: #7F8C98;
+  --syn-type: #5DD8FF;
+  --syn-function: #67B7A4;
+  --syn-attr: #B281EB;
+  --syn-meta: #FD8F3F;
+
+  --sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --gutter: 40px;
+  --edge-top: 28px;
+  --giant: clamp(72px, 15.5vw, 220px);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --ink: #0A0A0A;
+  --paper: #FFFFFF;
+  --muted: #6B6B6B;      /* 5.3:1 on paper */
+  --hairline: #E6E6E6;
+  --ghost: #EDEDED;
+  --danger: #8A1C1C;
+  --underline: #BDBDBD;
+  --gutter-ink: #B8B8B8;
+  --code-punct: #5A5A5A;
+  --scroll: #CFCFCF;
+  --focus-ring: #9A9A9A;
+  --surface: #FFFFFF;
+  --surface-edge: #E6E6E6;
+  --surface-hover: #F2F2F2;
+  --surface-shadow: 0 16px 40px -18px rgba(10, 10, 10, 0.28);
+
+  /* Syntax, light: after Xcode's default light theme. */
+  --syn-keyword: #9B2393;
+  --syn-string: #C41A16;
+  --syn-number: #1C00CF;
+  --syn-comment: #5D6C79;
+  --syn-type: #0B4F79;
+  --syn-function: #326D74;
+  --syn-attr: #6C36A9;
+  --syn-meta: #643820;
+}
+
+/* Theme switch: everything changes in the same frame, nothing fades on its own schedule. */
+.theme-switching, .theme-switching *, .theme-switching *::before, .theme-switching *::after {
+  transition: none !important;
+}
+
+@media (max-width: 640px) {
+  :root { --gutter: 18px; --edge-top: 18px; }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+}
+
+::selection { background: var(--ink); color: var(--paper); }
+
+* { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
+
+/* Keyboard focus: visible, but in the page's own language rather than a hard box. */
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+.act:focus-visible, .nav a:focus-visible, .theme-toggle:focus-visible, .mark:focus-visible, .quiet-link:focus-visible {
+  outline: none;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--ink);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+/* Kobweb's dev status chip never belongs on this page. */
+body > #status { display: none !important; }
+
+/* ---------- Frame ---------- */
+
+.frame {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: var(--edge-top) var(--gutter) var(--gutter);
+}
+
+/* Grid children default to never shrinking below their content's width, so one long line of code would widen
+   the whole page. Let them shrink; wide content then scrolls inside its own box instead. */
+.frame > *, .page > *, .view { min-width: 0; }
+
+.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.mark {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav { display: flex; gap: 28px; align-items: baseline; }
+
+.theme-toggle {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.nav a, .quiet-link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.nav a[aria-current="page"] { color: var(--ink); }
+
+.page {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+  padding-top: 24px;
+  animation: page-in 200ms var(--ease-out) both;
+}
+
+@keyframes page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- Text actions & button ---------- */
+
+.act {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--underline);
+  transition: text-decoration-color 150ms ease, opacity 150ms ease;
+}
+
+/* Decorations don't reach into inline-grid children, so the swap labels draw their own underline. */
+.act .swap > span {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--underline);
+}
+
+.act:disabled { opacity: 0.35; cursor: default; }
+
+@media (hover: hover) and (pointer: fine) {
+  .act:not(:disabled):hover { --underline: var(--ink); }
+  .nav a:hover, .quiet-link:hover, .theme-toggle:hover { color: var(--ink); }
+}
+
+.button {
+  background: var(--ink);
+  color: var(--paper);
+  border: 0;
+  font: inherit;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  padding: 14px 28px;
+  cursor: pointer;
+  transition: transform 140ms var(--ease-out), opacity 150ms ease;
+}
+
+.button:active:not(:disabled) { transform: scale(0.97); }
+.button:disabled { opacity: 0.22; cursor: default; }
+.button[data-busy="true"] { opacity: 0.6; cursor: progress; }
+
+/* "Copy link" ⇄ "Copied": two labels stacked in one cell, crossfaded with a little blur so it reads as one change. */
+.swap { display: inline-grid; }
+.swap > span {
+  grid-area: 1 / 1;
+  transition: opacity 160ms ease, filter 160ms ease, text-decoration-color 150ms ease;
+}
+.swap > span:last-child { opacity: 0; filter: blur(2px); }
+.swap[data-on="true"] > span:first-child { opacity: 0; filter: blur(2px); }
+.swap[data-on="true"] > span:last-child { opacity: 1; filter: none; }
+
+/* ---------- Composer ---------- */
+
+.stage { position: relative; min-height: 0; }
+
+.composer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  caret-color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.75;
+  padding: 0;
+  tab-size: 2;
+  /* Long lines wrap instead of scrolling sideways. The highlight layer below wraps identically. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.composer:focus-visible { outline: none; }
+
+/* Live highlighting: the textarea keeps the caret and selection, the highlighted copy shows through behind it. */
+.composer-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.75;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* Same reserved scrollbar space as the textarea, so both wrap at exactly the same width. */
+  scrollbar-gutter: stable;
+  color: var(--ink);
+}
+
+.composer-highlight code { font: inherit; }
+
+.composer[data-highlighted="true"] { color: transparent; -webkit-text-fill-color: transparent; }
+.composer[data-highlighted="true"]::selection { color: transparent; }
+
+.ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: opacity 180ms var(--ease-out), filter 180ms var(--ease-out);
+}
+
+.ghost[data-hidden="true"] { opacity: 0; filter: blur(4px); }
+
+.hint { font-size: 16px; color: var(--muted); }
+
+.giant {
+  font-weight: 300;
+  font-size: var(--giant);
+  line-height: 0.8;
+  letter-spacing: -0.055em;
+  margin: 0 0 0 -0.06em;
+  overflow-wrap: anywhere;
+}
+
+
+/* ---------- Foot row ---------- */
+
+.foot {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  font-size: 14px;
+  border-top: 1px solid var(--ink);
+  padding-top: 16px;
+  margin-top: 24px;
+}
+
+.foot .push { margin-left: auto; }
+/* The primary action stays bottom-right even when the row wraps on narrow screens. */
+.foot > .button { margin-left: auto; }
+.copy-of { color: var(--muted); }
+
+.kind { color: var(--muted); min-width: 170px; }
+.kind b { color: var(--ink); font-weight: 500; }
+
+/* Saving controls, grouped on the right: "Keep forever" then the button. */
+.save { display: inline-flex; align-items: center; gap: 28px; }
+
+/* The shortcut lives inside the button it triggers, quieter than the label. */
+.button .kbd { margin-left: 14px; opacity: 0.5; font-size: 12px; letter-spacing: 0; }
+@media (hover: none) { .button .kbd { display: none; } }
+
+/* Errors arrive gently and sit in the same rhythm as everything else. */
+.notice {
+  width: 100%;
+  color: var(--danger);
+  font-size: 14px;
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out);
+  @starting-style { opacity: 0; transform: translateY(4px); }
+}
+
+/* ---------- Created ---------- */
+
+.created {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+  padding-bottom: 4px;
+}
+
+.created .host { font-size: 16px; color: var(--muted); margin-bottom: 12px; }
+
+/* Room for descenders (g, y, p, q) so they never touch the rule below. */
+.created .giant { padding-bottom: 0.16em; }
+
+/* The one flourish: the new code rises in a letter at a time. Rare event, so it earns the motion. */
+.rise > span {
+  display: inline-block;
+  animation: rise 260ms var(--ease-out) both;
+  animation-delay: calc(var(--i) * 30ms);
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(0.12em); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* ---------- Snip view ---------- */
+
+
+.view { min-height: 0; }
+.backline { padding-bottom: 16px; }
+
+/* Details and actions for a snip, stuck to the top of the window while long content scrolls under it. */
+.snip-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px 32px;
+  padding: 14px 0;
+  margin-bottom: 20px;
+  font-size: 14px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink);
+}
+
+.snip-bar .push { margin-left: auto; }
+.snip-bar .actions { display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.foot .actions { display: flex; flex-wrap: wrap; gap: 12px 28px; }
+
+/* Code: one grid row per source line. Long lines wrap within their row, so the number stays beside the line's start. */
+.sheet {
+  margin: 0;
+  padding: 4px 0 8px;
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.75;
+  tab-size: 2;
+}
+
+.sheet .line {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr);
+  column-gap: 2.5ch;
+}
+
+.sheet .no { color: var(--gutter-ink); text-align: right; user-select: none; }
+.sheet .src { font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.prose code { font: inherit; }
+
+/* Phones: wrapping code this narrow makes it unreadable, so the code scrolls sideways instead. Text still wraps. */
+@media (max-width: 600px) {
+  .sheet { overflow-x: auto; }
+  .sheet .line { grid-template-columns: 3ch max-content; column-gap: 2ch; }
+  .sheet .src { white-space: pre; overflow-wrap: normal; }
+}
+
+.prose {
+  margin: 0;
+  padding: 4px 0 8px;
+  font-family: var(--sans);
+  font-size: 18px;
+  line-height: 1.65;
+  max-width: 72ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Syntax */
+.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-name, .hljs-tag .hljs-name { color: var(--syn-keyword); font-weight: 500; }
+.hljs-string, .hljs-regexp, .hljs-char, .hljs-template-variable, .hljs-subst { color: var(--syn-string); }
+.hljs-number, .hljs-symbol { color: var(--syn-number); }
+.hljs-comment, .hljs-quote, .hljs-doctag { color: var(--syn-comment); font-style: italic; }
+.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-selector-class, .hljs-selector-id { color: var(--syn-type); }
+.hljs-title.function_, .hljs-title, .hljs-section { color: var(--syn-function); }
+.hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable.language_, .hljs-selector-attr, .hljs-selector-pseudo { color: var(--syn-attr); }
+.hljs-meta, .hljs-meta .hljs-keyword { color: var(--syn-meta); }
+.hljs-punctuation, .hljs-operator, .hljs-tag { color: var(--code-punct); }
+.hljs-addition { color: var(--syn-function); }
+.hljs-deletion { color: var(--syn-string); }
+.prose .hljs-section { font-weight: 500; }
+.prose .hljs-strong { font-weight: 500; }
+.prose .hljs-emphasis { font-style: italic; }
+.prose .hljs-bullet, .prose .hljs-code { color: var(--muted); }
+.prose .hljs-link { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--underline); }
+
+/* ---------- Empty / error states: the page's own placeholder ---------- */
+
+.state {
+  padding-top: 12vh;
+  min-height: 0;
+}
+
+.state p { margin: 0; max-width: 46ch; font-size: 18px; }
+.state-actions { display: flex; gap: 28px; margin-top: 18px; }
+.state .lead { color: var(--ink); }
+.state .sub { color: var(--muted); margin-top: 4px; }
+
+.loading { opacity: 0; animation: page-in 200ms var(--ease-out) 300ms both; color: var(--muted); font-size: 14px; }
+
+/* ---------- Recent ---------- */
+
+.recent { min-height: 0; overflow: auto; }
+
+
+.more { padding: 22px 0 4px; }
+
+/* ---------- Menu: a themed replacement for <select>, opening upward from its trigger ---------- */
+
+.expiry { color: var(--muted); display: inline-flex; align-items: baseline; gap: 6px; }
+
+.menu { position: relative; display: inline-block; }
+
+.menu-list {
+  position: absolute;
+  right: -12px;
+  bottom: calc(100% + 12px);
+  z-index: 10;
+  min-width: 190px;
+  max-height: min(340px, 55vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--surface-edge);
+  box-shadow: var(--surface-shadow);
+  outline: none;
+  /* Grows from the trigger below its right edge. Enter 160ms, leave faster at 120ms. */
+  transform-origin: calc(100% - 24px) 100%;
+  opacity: 0;
+  transform: translateY(4px) scale(0.97);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease-out), transform 120ms var(--ease-out), visibility 0s linear 120ms;
+}
+
+.menu-list[data-open="true"] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), visibility 0s;
+}
+
+/* Opens from the trigger's left edge instead, for menus near the left of the screen. */
+.menu-list.start { left: -12px; right: auto; transform-origin: 24px 100%; }
+
+.menu-list li {
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menu-list li[aria-selected="true"] { color: var(--ink); font-weight: 500; }
+.menu-list li.active { background: var(--surface-hover); color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-list, .menu-list[data-open="true"] { transform: none; }
+}
+
+/* ---------- Sign in ---------- */
+
+.auth { max-width: 440px; display: flex; flex-direction: column; gap: 28px; }
+.auth .lead { font-size: 20px; line-height: 1.45; }
+
+.field { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: var(--muted); }
+
+.field input {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  padding: 10px 0;
+  font: inherit;
+  font-size: 18px;
+  color: var(--ink);
+  caret-color: var(--ink);
+  transition: border-color 150ms ease;
+}
+
+.field input:focus { outline: none; border-bottom-color: var(--ink); }
+.field input:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
+  caret-color: var(--ink);
+}
+
+.field-hint { font-size: 13px; color: var(--muted); }
+.auth-actions { display: flex; align-items: baseline; gap: 28px; margin-top: 4px; }
+
+/* ---------- Landing ---------- */
+
+.landing { display: flex; flex-direction: column; gap: 14vh; padding: 10vh 0 6vh; }
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6vw;
+  align-items: end;
+}
+
+@media (max-width: 960px) {
+  .hero { grid-template-columns: 1fr; gap: 56px; }
+  .landing { padding-top: 6vh; gap: 10vh; }
+}
+
+.statement {
+  margin: 0;
+  font-weight: 300;
+  font-size: clamp(44px, 6vw, 96px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  max-width: 12ch;
+  text-wrap: balance;
+}
+
+.lede { margin: 28px 0 0; max-width: 44ch; font-size: 19px; line-height: 1.55; color: var(--muted); text-wrap: pretty; }
+
+.cta { display: flex; align-items: baseline; gap: 28px; margin-top: 40px; }
+.cta .button { text-decoration: none; display: inline-block; }
+
+/* ---------- Snip rows: one design for every list of links (landing page, Your links) ---------- */
+
+.snip-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--ink); }
+
+.snip-rows li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr) auto auto;
+  gap: 24px;
+  align-items: baseline;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 15px;
+}
+
+.row-kind { color: var(--muted); font-size: 13px; }
+.row-src { font-family: var(--mono); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.row-src code { font: inherit; }
+.row-detail { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.row-to { font-weight: 500; white-space: nowrap; }
+.row-host { color: var(--muted); font-weight: 400; }
+
+/* The slug's link stretches over the whole row, so anywhere on it opens the link. */
+.row-link { color: inherit; text-decoration: none; }
+.row-link::after { content: ""; position: absolute; inset: 0; }
+.row-link:focus-visible { outline: none; }
+.snip-rows li:has(.row-link:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 4px; }
+
+@media (hover: hover) and (pointer: fine) {
+  .snip-rows li:has(.row-link) { cursor: pointer; }
+  .snip-rows li:has(.row-link):hover .row-to { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+}
+
+.snip-rows li.dimmed .row-src, .snip-rows li.dimmed .row-to { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--underline); }
+
+/* Landing only: the examples rise in once, staggered. Lists people revisit stay still. */
+.snip-rows.rise-in li { animation: rise 320ms var(--ease-out) both; animation-delay: calc(120ms + var(--i) * 60ms); }
+
+@media (max-width: 560px) {
+  .snip-rows li { grid-template-columns: minmax(0, 1fr) auto; }
+  .row-kind, .row-detail { display: none; }
+}
+
+.features { margin: 0; border-top: 1px solid var(--ink); }
+
+.feature {
+  display: grid;
+  grid-template-columns: minmax(8ch, 1fr) 3fr;
+  gap: 24px;
+  padding: 26px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.feature dt { font-size: 18px; font-weight: 500; }
+.feature dd { margin: 0; font-size: 18px; line-height: 1.55; color: var(--muted); max-width: 56ch; }
+
+@media (max-width: 560px) {
+  .feature { grid-template-columns: 1fr; gap: 6px; }
+}
+
+.site-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--muted);
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* ---------- Reduced motion: fewer, gentler. Fades stay, movement goes. ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .rise > span, .snip-rows.rise-in li { animation-name: fade; animation-delay: 0ms; }
+  .ghost, .ghost[data-hidden="true"] { filter: none; }
+  .button:active:not(:disabled) { transform: none; }
+  .notice { @starting-style { transform: none; } }
+}
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
