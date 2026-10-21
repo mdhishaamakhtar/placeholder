@@ -1,0 +1,10 @@
+# Unix line endings for scripts so they run in Linux containers and CI, whatever the checkout platform.
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Binary assets
+*.png binary
+*.woff2 binary
+*.ttf binary
+*.jar binary

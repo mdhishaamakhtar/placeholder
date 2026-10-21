@@ -6,6 +6,9 @@
 
 ## placeholder
 
+[![CI](https://github.com/mdhishaamakhtar/placeholder/actions/workflows/ci.yml/badge.svg)](https://github.com/mdhishaamakhtar/placeholder/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE)
+
 placeholder turns a paste into a short link. Paste a URL and the link redirects to it. Paste code and the link opens a clean page with it, language detected, colored like your editor, and one click away from tidy. Paste notes or logs and they're set in readable type. Nothing you paste is ever run or rendered.
 
 It's written in Kotlin from the database to the browser, and built to scale out: every server is stateless, so you add capacity by adding servers.
@@ -15,7 +18,7 @@ It's written in Kotlin from the database to the browser, and built to scale out:
 - Shortens URLs, with instant `302` redirects served from an in-memory cache
 - Shares code with language detection, syntax highlighting, and Prettify for JSON, SQL, HTML, and XML
 - Shares text and Markdown as a quiet, readable page
-- Accounts with email and password: your links on every device, edit them in place, or set them to expire
+- Accounts with email and password: your links on every device, edit them in place, or set them to expire. Making links needs an account; opening them never does
 - Link previews that show the content: share a SQL snippet in Slack and the card shows the query, colored
 - Dark and light themes, rendered on the server so there's never a flash of the wrong one
 
@@ -64,10 +67,55 @@ It's written in Kotlin from the database to the browser, and built to scale out:
 - **Redis is optional.** If it's slow or down, the app keeps serving from Postgres, and rate limits fail open rather than taking the site down.
 - **Accounts are deliberately boring.** Passwords are hashed with Argon2id at OWASP settings. Sessions are random tokens, stored only as a SHA-256 hash, in an HttpOnly, SameSite=Lax cookie, and signing out revokes them on the server. Writes that carry the cookie must come from the site's own origin. Sign-ins are rate-limited per IP and per email, and a wrong email gets exactly the same answer as a wrong password.
 - **Expired links answer `410 Gone`.** An hourly job, run by one instance at a time via a Redis lock, removes them along with expired sessions.
+- **The server writes each page's head.** Kobweb builds one `index.html`; Ktor parses it once with jsoup and, per request, adds that page's title, description, Open Graph and Twitter tags, and the visitor's theme. Crawlers see the right preview without running any script, and pasted content is escaped by construction.
 
-## Quick Start (Docker)
+## Design System
 
-Build the server and the site, then start everything: three app servers behind nginx, Postgres, and Redis.
+The look is monochrome and typographic: black or white, one grey, and color only where it carries meaning (syntax highlighting). Every value comes from tokens at the top of [`styles.css`](./web/src/jsMain/resources/public/styles.css):
+
+- **Type:** Hanken Grotesk for interface and prose, Geist Mono for code and numbers, both self-hosted. Six roles about 1.125x apart (14px labels and actions, 15px code, 16px body, 18px reading text, 20px page introductions) plus two display sizes for the landing headline and a new short code. All in `rem`, so browser zoom and font settings are respected.
+- **Space:** one 4px-based scale (4, 8, 12, 16, 24, 32, 48, 64). Tight steps group related things; wide steps separate groups.
+- **Motion:** only where it confirms something or prevents a jarring change, short (120 to 260ms), on a strong ease-out curve, with lighter versions under `prefers-reduced-motion`. The one flourish is a new short code rising in letter by letter.
+- **Controls:** no browser-native widgets where they can't match the theme; menus are a themed combobox that works fully from the keyboard. Text actions get 44px touch targets on touch screens.
+- **Themes:** dark by default, light on request, chosen server-side from a cookie so the first paint is already right.
+
+## Running It Yourself
+
+### What you need
+
+- **Java 25.** The build always runs on Java 25, found automatically, even if your terminal's default `java` is a different version.
+- **Docker**, for Postgres and Redis, and for the tests.
+- **[oha](https://github.com/hatoo/oha)**, only if you want to run the benchmarks (`brew install oha`).
+
+You don't need Gradle, Node, or anything else installed: `./gradlew` downloads the right Gradle, and the build fetches its own Node to compile the site.
+
+### Run it
+
+```bash
+docker compose up -d
+```
+
+```bash
+./gradlew :server:run
+```
+
+The first command starts Postgres and Redis in the background. The second builds the site and the server and starts it at [http://localhost:8080](http://localhost:8080); create an account there to start making links. Stop the server with `Ctrl+C`.
+
+After changing anything in `web/`, rebuild the site and reload the page (the server picks it up without restarting):
+
+```bash
+./gradlew :web:assembleSite
+```
+
+### Run the tests
+
+```bash
+./gradlew :shared:jvmTest :shared:jsTest :server:test
+```
+
+### Run the whole stack in Docker
+
+Three app servers behind nginx, with Postgres and Redis, the way it would run in production. Build first, then start:
 
 ```bash
 ./gradlew :server:installDist :web:assembleSite
@@ -77,25 +125,37 @@ Build the server and the site, then start everything: three app servers behind n
 docker compose --profile stack up -d --build
 ```
 
-Then open [http://localhost:8080](http://localhost:8080).
+It's at [http://localhost:8080](http://localhost:8080), so stop `./gradlew :server:run` first if it's running.
 
-## Manual Dev Setup
+### Redraw the preview images
 
-The project targets Java 25. If your shell defaults to another JDK, pin `JAVA_HOME` for Gradle commands.
-
-### 1. Start Postgres and Redis
+The two images in this README are drawn by the same code the server uses for link previews:
 
 ```bash
-docker compose up -d
+./gradlew :server:renderPreviews
 ```
 
-### 2. Run the app
+### Stop everything
+
+Stop the containers (your data is kept):
 
 ```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 25) ./gradlew :server:run
+docker compose --profile stack down
 ```
 
-This builds the Kobweb site and serves it from Ktor at [http://localhost:8080](http://localhost:8080). After changing the frontend, rebuild it with `./gradlew :web:assembleSite` and reload.
+Stop and also delete the database and cache data, for a clean slate:
+
+```bash
+docker compose --profile stack down -v
+```
+
+Stop Gradle's background build processes:
+
+```bash
+./gradlew --stop
+```
+
+**About those background processes:** the first `./gradlew` command starts a Gradle "daemon", a Java process that stays running after the build so the next build starts in seconds instead of warming up from scratch (Kotlin starts its own compiler daemon for the same reason). They shut themselves down after a few idle hours. Stop them by hand to free memory, or before benchmarking so they don't compete for CPU.
 
 ## Configuration
 
@@ -116,31 +176,31 @@ Settings live in [`server/src/main/resources/application.yaml`](./server/src/mai
 
 ## Tests
 
-Server tests run against real Postgres and Redis through Testcontainers, so Docker must be running.
+Server tests run against real Postgres and Redis through Testcontainers, so Docker must be running. They cover redirects, storage and reads, validation and size limits, Prettify, rate limits, running without Redis, 404 and 410 pages (including over gzip), theme rendering, meta tags that hostile pastes can't break out of, and accounts: sign-up and sign-in, session revocation, the cross-site write check, ownership and edit permissions, expiry, and an edit on one app instance reaching another instance's cache. The shared rules (link detection, slugs, sign-in redirects) are tested on both the JVM and in a headless browser.
 
-```bash
-JAVA_HOME=$(/usr/libexec/java_home -v 25) ./gradlew :shared:jvmTest :shared:jsTest :server:test
-```
-
-They cover redirects, storage and reads, validation and size limits, Prettify, rate limits, running without Redis, 404 and 410 pages (including over gzip), theme rendering, and accounts: sign-up and sign-in, session revocation, the cross-site write check, ownership and edit permissions, expiry, and an edit on one app instance reaching another instance's cache.
+CI runs all of it, plus a production build of the site, on every push and pull request.
 
 ## Benchmarks
 
-Measured with [oha](https://github.com/hatoo/oha) against the Docker stack above (3 app servers, nginx, Postgres, and Redis), with everything, the load generator included, on one Apple M1 Pro laptop. Treat these as a floor for that one machine, not a capacity claim.
+Measured with [oha](https://github.com/hatoo/oha) against the Docker stack (3 app servers, nginx, Postgres, and Redis), with everything, the load generator included, on one Apple M1 Pro laptop. Treat these as a floor for that one machine, not a capacity claim.
 
 20 seconds per scenario, 200 concurrent connections (50 for creates), every request answered correctly:
 
 | Scenario | Requests/s | p50 | p95 | p99 | Success |
 |---|---:|---:|---:|---:|---:|
-| GET /{slug} (link, 302) | 27,035 | 6.2 ms | 16.6 ms | 26.2 ms | 100.00% |
-| GET /api/snips/{slug} (owned link) | 19,209 | 8.3 ms | 25.9 ms | 42.1 ms | 100.00% |
-| GET /api/snips/{missing} (404) | 17,017 | 9.9 ms | 26.2 ms | 42.4 ms | 100.00% |
-| GET /{slug} (page, gzip) | 17,961 | 8.8 ms | 27.6 ms | 43.9 ms | 100.00% |
-| POST /api/snips (c=50) | 5,108 | 8.9 ms | 17.5 ms | 25.0 ms | 100.00% |
+| GET /{slug} (link, 302) | 24,092 | 6.7 ms | 19.7 ms | 33.7 ms | 100.00% |
+| GET /api/snips/{slug} (owned link) | 16,965 | 8.4 ms | 32.9 ms | 55.6 ms | 100.00% |
+| GET /api/snips/{missing} (404) | 15,149 | 10.2 ms | 32.7 ms | 53.3 ms | 100.00% |
+| GET /{slug} (page, gzip) | 15,497 | 9.0 ms | 36.7 ms | 62.1 ms | 100.00% |
+| POST /api/snips (c=50) | 4,081 | 10.1 ms | 26.4 ms | 42.0 ms | 100.00% |
 
-Runs on a busy laptop vary by up to a third depending on what else is running; the numbers above were taken with build tools stopped.
+Runs on a laptop vary by up to a third depending on what else is running (a browser, an editor, build daemons).
 
-Reproduce them (the create test needs the per-client limit raised):
+To reproduce them, stop the build daemons so they don't compete for CPU, start the stack with the per-client create limit raised (otherwise the create test measures the rate limiter), and run the script:
+
+```bash
+./gradlew :server:installDist :web:assembleSite && ./gradlew --stop
+```
 
 ```bash
 CREATES_PER_MINUTE=1000000 docker compose --profile stack up -d --build
@@ -150,14 +210,37 @@ CREATES_PER_MINUTE=1000000 docker compose --profile stack up -d --build
 bench/run.sh
 ```
 
+Results are written to `bench/results/`. Afterwards, restart the stack with the normal limit:
+
+```bash
+docker compose --profile stack up -d
+```
+
 ## Project Layout
 
 ```text
-shared/   Kotlin Multiplatform: API types and rules used by both server and browser
-server/   Ktor: HTTP, accounts, snips, caching, preview cards, migrations
-web/      Kobweb: the site, compiled from Kotlin to JavaScript
-docker/   Dockerfile and nginx config
-bench/    Load test script
+shared/              Kotlin Multiplatform, used by both server and browser
+  Models, Rules        request and response types, limits, link and slug rules
+  Paths, Languages     every page address and language name, defined once
+
+server/              Ktor
+  config/              typed view of application.yaml
+  http/                routes, plugins, error handling, sessions, the page head (AppShell)
+  account/             users, sessions, Argon2id password hashing
+  snip/                snips: service, repository, read-through cache, slugs
+  prettify/            JSON, SQL, HTML, and XML formatters
+  og/                  link-preview cards drawn with Java2D
+  infra/               database, Redis, cross-instance cache eviction, rate limits, cleanup
+  resources/           application.yaml, Flyway migrations, fonts for preview cards
+
+web/                 Kobweb, compiled from Kotlin to JavaScript
+  pages/               one file per route: landing, sign-in, editor, your links, a link
+  editor/              the editor's state holder and its parts
+  components/          shared UI: frame, menus, rows, empty and error states
+  resources/public/    styles.css (the design system), fonts, favicon, robots.txt
+
+docker/              Dockerfile and nginx config for the multi-instance stack
+bench/               load test script
 ```
 
 ## Contributor

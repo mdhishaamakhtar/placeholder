@@ -1,6 +1,7 @@
 package dev.placeholder.web.pages
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -9,6 +10,7 @@ import androidx.compose.runtime.setValue
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
+import com.varabyte.kobweb.navigation.UpdateHistoryMode
 import dev.placeholder.shared.Paths
 import dev.placeholder.shared.Rules
 import dev.placeholder.web.ApiException
@@ -35,6 +37,11 @@ fun SigninPage() {
     val next = ctx.route.params["next"]?.takeIf(Paths::isSafeNext) ?: Paths.NEW
     val scope = rememberCoroutineScope()
 
+    // Already signed in: there's nothing to do here, so continue to wherever they were headed.
+    LaunchedEffect(Session.ready, Session.me) {
+        if (Session.ready && Session.me != null) ctx.router.navigateTo(next, UpdateHistoryMode.REPLACE)
+    }
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
@@ -46,8 +53,8 @@ fun SigninPage() {
         error = null
         scope.launch {
             try {
+                // On success the session changes, and the effect above takes them on to `next`.
                 if (creating) Session.signUp(email, password) else Session.signIn(email, password)
-                ctx.router.navigateTo(next)
             } catch (e: ApiException) {
                 error = e.message
             } finally {
