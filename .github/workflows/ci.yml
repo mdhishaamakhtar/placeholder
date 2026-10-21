@@ -26,7 +26,7 @@ jobs:
           java-version: 25
 
       # Validates the Gradle wrapper and caches dependencies between runs.
-      - uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v6
 
       # Shared rules on the JVM and in a headless browser, the server suite against real Postgres and Redis
       # (Testcontainers uses the runner's Docker), and a production build of the site.
