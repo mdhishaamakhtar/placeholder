@@ -7,6 +7,7 @@ import dev.placeholder.shared.ApiError
 import dev.placeholder.shared.CreateSnipRequest
 import dev.placeholder.shared.CreateSnipResponse
 import dev.placeholder.shared.Credentials
+import dev.placeholder.shared.Paths
 import dev.placeholder.shared.PrettifyRequest
 import dev.placeholder.shared.PrettifyResponse
 import dev.placeholder.shared.Rules
@@ -206,6 +207,17 @@ class ApiTest {
             assertEquals("#FFFFFF", light.selectFirst("meta[name=theme-color]")!!.attr("content"))
             assertEquals(1, light.select("title").size)
             assertEquals(1, light.select("meta[name=theme-color]").size)
+        }
+
+    @Test
+    fun aLinksVisitsPageIsTheAppAndStaysOutOfSearch() =
+        withApp { client ->
+            val created = client.create("https://example.com/stats-page").body<CreateSnipResponse>()
+            val response = client.get(Paths.stats(created.slug))
+            assertEquals(HttpStatusCode.OK, response.status)
+            val doc = Jsoup.parse(response.bodyAsText())
+            assertEquals("Visits · placeholder", doc.title())
+            assertEquals("noindex", doc.selectFirst("meta[name=robots]")!!.attr("content"))
         }
 
     @Test

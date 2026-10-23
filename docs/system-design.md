@@ -114,7 +114,7 @@ Every redirect is also a write, so counting visits must not touch the request's 
 - **Bots don't count.** Link-preview fetchers (Slack, Discord, WhatsApp, crawlers) identify themselves and are skipped.
 - **Ready before serving.** The producer can't send until it knows the topic's partitions, so a starting server waits up to 10 seconds for Kafka before it takes traffic. If Kafka is down, it starts anyway: redirects don't need Kafka.
 
-Owners see visits in "Your links", and the full series at `GET /api/snips/{slug}/stats`.
+Owners see each link's visit count in "Your links", and a page per link at `/stats/{slug}`: the last 30 days in a sentence and a bar per day, read from `GET /api/snips/{slug}/stats`.
 
 ### Why Kafka, and what changed on the way
 

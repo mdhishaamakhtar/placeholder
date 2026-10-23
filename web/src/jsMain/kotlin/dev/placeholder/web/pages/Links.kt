@@ -144,6 +144,7 @@ private fun LinkRow(item: SnipSummary) {
         slug = item.slug,
         target = target,
         visits = item.visits,
+        visitsPath = Paths.stats(item.slug),
         detail =
             when {
                 expired -> "Expired"

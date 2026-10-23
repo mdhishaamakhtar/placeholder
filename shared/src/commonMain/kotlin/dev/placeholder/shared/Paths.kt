@@ -10,12 +10,17 @@ object Paths {
     const val SIGN_IN = "/signin"
     const val LINKS = "/links"
 
+    /** Prefix of a link's visits page, `/stats/{slug}`. No slug can clash with it: slugs are seven characters. */
+    const val STATS = "/stats"
+
     /** The fixed pages, as opposed to `/{slug}`. */
     val PAGES = listOf(HOME, NEW, SIGN_IN, LINKS)
 
     fun snip(slug: String) = "/$slug"
 
     fun raw(slug: String) = "/$slug/raw"
+
+    fun stats(slug: String) = "$STATS/$slug"
 
     fun edit(slug: String) = "$NEW?edit=$slug"
 

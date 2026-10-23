@@ -19,7 +19,7 @@ It's written in Kotlin from the database to the browser, and built as a system d
 - Shares code with language detection, syntax highlighting, and Prettify for JSON, SQL, HTML, and XML
 - Shares text and Markdown as a quiet, readable page
 - Accounts with email and password: your links on every device, edit them in place, or set them to expire. Making links needs an account; opening them never does
-- Visit counts for your links, with unique visitors, counted off the request path so redirects never wait on them
+- Visits for every link you make: a count in your list, and a page per link with unique visitors and the last 30 days, day by day. Counted off the request path, so redirects never wait on them
 - Link previews that show the content: share a SQL snippet in Slack and the card shows the query, colored
 - Dark and light themes, rendered on the server so there's never a flash of the wrong one
 

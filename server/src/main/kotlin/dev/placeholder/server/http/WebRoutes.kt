@@ -114,6 +114,12 @@ fun Route.webRoutes(
         }
     }
 
+    // A link's visits: the page is the app for anyone; the numbers come from an API only the owner can read.
+    get(Regex("${Paths.STATS.removePrefix("/")}/$slug")) {
+        val path = Paths.stats(call.parameters["slug"].orEmpty())
+        shell.respond(call, HttpStatusCode.OK, PageMeta.page("Visits", path, indexable = false))
+    }
+
     // The app's own pages. Any other path falls through to the 404 handler, which still renders the app.
     Paths.PAGES.forEach { path ->
         require(path in PAGE_TITLES) { "No page title for $path" }

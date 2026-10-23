@@ -38,6 +38,8 @@ fun SnipRow(
     slug: String,
     target: RowTarget,
     visits: Long? = null,
+    /** Where the visit count leads, when it's a link of yours: its visits page. */
+    visitsPath: String? = null,
     detail: String? = null,
     dimmed: Boolean = false,
     index: Int = 0,
@@ -52,7 +54,11 @@ fun SnipRow(
             if (html == null) Text(preview) else HtmlCode(html)
         }
         val visitsLabel = visits?.let { if (it == 0L) "No visits" else formatVisits(it) }
-        if (visitsLabel != null) Span({ classes("row-visits") }) { Text(visitsLabel) }
+        if (visitsLabel != null) {
+            Span({ classes("row-visits") }) {
+                if (visitsPath == null) Text(visitsLabel) else Anchor(visitsPath) { Text(visitsLabel) }
+            }
+        }
         if (detail != null) Span({ classes("row-detail") }) { Text(detail) }
         Span({ classes("row-to") }) {
             Span({ classes("row-host") }) { Text("${window.location.host}/") }

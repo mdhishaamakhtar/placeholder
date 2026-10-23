@@ -4,6 +4,7 @@ import dev.placeholder.shared.ApiError
 import dev.placeholder.shared.CreateSnipRequest
 import dev.placeholder.shared.CreateSnipResponse
 import dev.placeholder.shared.Credentials
+import dev.placeholder.shared.LinkStats
 import dev.placeholder.shared.Me
 import dev.placeholder.shared.Messages
 import dev.placeholder.shared.PrettifyRequest
@@ -83,6 +84,13 @@ object Api {
 
     suspend fun signOut() {
         send("POST", "/api/account/signout", "{}")
+    }
+
+    /** A link's visits, for its owner. Null when there's no such link of yours (the server doesn't say which). */
+    suspend fun stats(slug: String): LinkStats? {
+        val response = request { window.fetch("/api/snips/$slug/stats").await() }
+        if (response.status.toInt() == NOT_FOUND) return null
+        return json.decodeFromString(LinkStats.serializer(), response.ensureOk())
     }
 
     /** Null when nobody is signed in. */

@@ -168,6 +168,7 @@ private fun SnipView(snip: SnipDto) {
                     A(Paths.raw(snip.slug), { classes("act") }) { Text("Raw") }
                     if (snip.owned) {
                         Anchor(Paths.edit(snip.slug), { classes("act") }) { Text("Edit") }
+                        Anchor(Paths.stats(snip.slug), { classes("act") }) { Text("Visits") }
                     } else {
                         Anchor(Paths.copyOf(snip.slug), { classes("act") }) { Text("Edit a copy") }
                     }

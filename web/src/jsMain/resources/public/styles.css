@@ -556,6 +556,20 @@ html, body {
   .snip-rows li:has(.row-link):hover .row-to { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 }
 
+/* The visit count opens the link's visits page, so it sits above the row-wide link around it. */
+.row-visits a {
+  position: relative;
+  z-index: 1;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--underline);
+  text-underline-offset: 3px;
+  transition: color var(--fast) ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .row-visits a:hover { color: var(--ink); }
+}
+
 .snip-rows li.dimmed .row-src, .snip-rows li.dimmed .row-to {
   color: var(--muted);
   text-decoration: line-through;
@@ -722,6 +736,53 @@ html, body {
   border-top: 1px solid var(--hairline);
   font-size: var(--type-small);
   color: var(--muted);
+}
+
+/* ---------- Visits: one sentence for the month, then the days as bars ---------- */
+
+.stats .statement { max-width: 20ch; margin-top: var(--space-6); }
+.stats-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+.chart { margin-top: var(--space-7); }
+
+.chart-head, .chart-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-5);
+  font-size: var(--type-small);
+  color: var(--muted);
+}
+.chart-head { padding-bottom: var(--space-3); border-bottom: 1px solid var(--hairline); }
+.chart-axis { padding-top: var(--space-2); }
+
+/* Each bar is a full-height column, so the whole column answers the pointer, not just the drawn part. */
+.bars {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: 3px;
+  block-size: 12rem;
+  padding-top: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+.bars:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: var(--space-2); }
+
+.bar { display: flex; align-items: flex-end; }
+.bar > span {
+  inline-size: 100%;
+  block-size: max(1px, var(--share));
+  background: var(--underline);
+  transition: background-color var(--fast) ease;
+}
+.bar.on > span { background: var(--ink); }
+
+.readout { margin: var(--space-4) 0 0; font-size: var(--type-reading); line-height: var(--leading-reading); }
+.readout-day { color: var(--muted); margin-right: var(--space-2); }
+
+.stats-note { margin: var(--space-7) 0 0; max-width: 60ch; font-size: var(--type-small); }
+
+@media (max-width: 560px) {
+  .bars { block-size: 9rem; gap: 2px; }
 }
 
 /* ---------- Empty and error states: one plain sentence, a quieter one, what to do next ---------- */

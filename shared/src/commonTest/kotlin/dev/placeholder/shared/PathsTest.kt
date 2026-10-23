@@ -15,6 +15,14 @@ class PathsTest {
     }
 
     @Test
+    fun aLinksVisitsLiveUnderStats() {
+        assertEquals("/stats/x7Kq2Ab", Paths.stats("x7Kq2Ab"))
+        // Signing in from a visits page comes back to it.
+        assertTrue(Paths.isSafeNext(Paths.stats("x7Kq2Ab")))
+        assertFalse(Rules.isSlug(Paths.STATS.removePrefix("/")))
+    }
+
+    @Test
     fun onlySameSitePathsAreFollowedAfterSigningIn() {
         assertTrue(Paths.isSafeNext("/links"))
         assertTrue(Paths.isSafeNext("/new?edit=x7Kq2Ab"))
