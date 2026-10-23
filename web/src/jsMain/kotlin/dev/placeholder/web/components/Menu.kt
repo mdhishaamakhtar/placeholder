@@ -56,7 +56,8 @@ fun <T> ChoiceMenu(
     // Long lists scroll: keep the highlighted option in view as the arrows move it.
     LaunchedEffect(open, active) {
         if (open) {
-            document.getElementById("$id-option-$active")
+            document
+                .getElementById("$id-option-$active")
                 ?.scrollIntoView(ScrollIntoViewOptions(block = ScrollLogicalPosition.NEAREST))
         }
     }
@@ -97,17 +98,38 @@ fun <T> ChoiceMenu(
                     return@onKeyDown
                 }
                 when (it.key) {
-                    "ArrowDown" -> active = (active + 1).coerceAtMost(options.lastIndex)
-                    "ArrowUp" -> active = (active - 1).coerceAtLeast(0)
-                    "Home" -> active = 0
-                    "End" -> active = options.lastIndex
-                    "Enter", " " -> choose(active)
-                    "Escape" -> open = false
+                    "ArrowDown" -> {
+                        active = (active + 1).coerceAtMost(options.lastIndex)
+                    }
+
+                    "ArrowUp" -> {
+                        active = (active - 1).coerceAtLeast(0)
+                    }
+
+                    "Home" -> {
+                        active = 0
+                    }
+
+                    "End" -> {
+                        active = options.lastIndex
+                    }
+
+                    "Enter", " " -> {
+                        choose(active)
+                    }
+
+                    "Escape" -> {
+                        open = false
+                    }
+
                     "Tab" -> {
                         open = false
                         return@onKeyDown
                     }
-                    else -> return@onKeyDown
+
+                    else -> {
+                        return@onKeyDown
+                    }
                 }
                 it.preventDefault()
             }

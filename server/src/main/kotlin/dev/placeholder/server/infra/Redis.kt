@@ -18,15 +18,18 @@ import kotlin.time.Duration.Companion.milliseconds
  * Redis is an accelerator, never a dependency: Redis failures and slow calls return null so the app keeps
  * serving from Postgres. Coroutine cancellation is deliberately not caught.
  */
-class Redis(url: String) : AutoCloseable {
+class Redis(
+    url: String,
+) : AutoCloseable {
     private val log = LoggerFactory.getLogger(Redis::class.java)
     private val client = RedisClient.create(url)
-    private val connection: StatefulRedisConnection<String, String>? = try {
-        client.connect()
-    } catch (e: RedisException) {
-        log.warn("Redis unavailable at {}, continuing without it: {}", url, e.message)
-        null
-    }
+    private val connection: StatefulRedisConnection<String, String>? =
+        try {
+            client.connect()
+        } catch (e: RedisException) {
+            log.warn("Redis unavailable at {}, continuing without it: {}", url, e.message)
+            null
+        }
     private val commands: RedisAsyncCommands<String, String>? = connection?.async()
     private var pubSub: StatefulRedisPubSubConnection<String, String>? = null
 
@@ -53,16 +56,26 @@ class Redis(url: String) : AutoCloseable {
         }
     }
 
-    private class Reply<T>(val value: T?)
+    private class Reply<T>(
+        val value: T?,
+    )
 
     suspend fun get(key: String): String? = call { it.get(key) }
 
-    suspend fun setEx(key: String, seconds: Long, value: String) {
+    suspend fun setEx(
+        key: String,
+        seconds: Long,
+        value: String,
+    ) {
         call { it.set(key, value, SetArgs.Builder.ex(seconds)) }
     }
 
     /** Sets the key only if nobody holds it: true if we set it, false if it's taken, null if Redis is unavailable. */
-    suspend fun setIfAbsent(key: String, seconds: Long, value: String): Boolean? {
+    suspend fun setIfAbsent(
+        key: String,
+        seconds: Long,
+        value: String,
+    ): Boolean? {
         if (commands == null) return null
         val reply = runCatchingRedis { it.set(key, value, SetArgs.Builder.nx().ex(seconds)) } ?: return null
         return reply.value == "OK"
@@ -72,20 +85,31 @@ class Redis(url: String) : AutoCloseable {
         call { it.del(key) }
     }
 
-    suspend fun publish(channel: String, message: String) {
+    suspend fun publish(
+        channel: String,
+        message: String,
+    ) {
         call { it.publish(channel, message) }
     }
 
     /** Calls [onMessage] for every message on [channel], on a Lettuce thread. Keep the handler quick. */
-    fun subscribe(channel: String, onMessage: (String) -> Unit) {
+    fun subscribe(
+        channel: String,
+        onMessage: (String) -> Unit,
+    ) {
         if (connection == null) return
         try {
             val conn = client.connectPubSub()
-            conn.addListener(object : RedisPubSubAdapter<String, String>() {
-                override fun message(ch: String, message: String) {
-                    if (ch == channel) onMessage(message)
-                }
-            })
+            conn.addListener(
+                object : RedisPubSubAdapter<String, String>() {
+                    override fun message(
+                        ch: String,
+                        message: String,
+                    ) {
+                        if (ch == channel) onMessage(message)
+                    }
+                },
+            )
             conn.sync().subscribe(channel)
             pubSub = conn
         } catch (e: RedisException) {
@@ -94,7 +118,10 @@ class Redis(url: String) : AutoCloseable {
     }
 
     /** Increments a counter and starts its expiry on first use. Returns null when Redis is unavailable. */
-    suspend fun incrementWindow(key: String, windowSeconds: Long): Long? {
+    suspend fun incrementWindow(
+        key: String,
+        windowSeconds: Long,
+    ): Long? {
         val count = call { it.incr(key) } ?: return null
         if (count == 1L) call { it.expire(key, windowSeconds) }
         return count

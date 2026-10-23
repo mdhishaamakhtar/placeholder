@@ -28,7 +28,11 @@ data class PageMeta(
             "Paste a link, code, or text and get a short link to share it. Code is highlighted and tidied; links redirect instantly."
         const val DEFAULT_IMAGE_ALT = "placeholder: short links for links, code, and text."
 
-        fun page(title: String?, path: String, indexable: Boolean = true) = PageMeta(
+        fun page(
+            title: String?,
+            path: String,
+            indexable: Boolean = true,
+        ) = PageMeta(
             title = title?.let { "$it · placeholder" } ?: "placeholder: short links for links, code, and text",
             description = DEFAULT_DESCRIPTION,
             path = path,
@@ -44,7 +48,10 @@ data class PageMeta(
  * The file Kobweb generates is parsed once into an HTML document and edited through the DOM, never by matching
  * strings, so a change in how Kobweb formats its output can't silently break what crawlers see.
  */
-class AppShell(webRoot: File?, private val publicBaseUrl: String) {
+class AppShell(
+    webRoot: File?,
+    private val publicBaseUrl: String,
+) {
     private val index = webRoot?.resolve("index.html")?.takeIf { it.isFile }
 
     @Volatile
@@ -54,16 +61,21 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
         val file = index ?: return null
         val modified = file.lastModified()
         cached?.let { (at, doc) -> if (at == modified) return doc }
-        val doc = Jsoup.parse(file, Charsets.UTF_8.name()).apply {
-            outputSettings().prettyPrint(false)
-            // Kobweb writes a site-wide title and description; each page supplies its own instead.
-            head().select("title, meta[name=description], meta[name=theme-color]").remove()
-        }
+        val doc =
+            Jsoup.parse(file, Charsets.UTF_8.name()).apply {
+                outputSettings().prettyPrint(false)
+                // Kobweb writes a site-wide title and description; each page supplies its own instead.
+                head().select("title, meta[name=description], meta[name=theme-color]").remove()
+            }
         cached = modified to doc
         return doc
     }
 
-    suspend fun respond(call: ApplicationCall, status: HttpStatusCode, meta: PageMeta) {
+    suspend fun respond(
+        call: ApplicationCall,
+        status: HttpStatusCode,
+        meta: PageMeta,
+    ) {
         val template = template()
         if (template == null) {
             call.respondText("placeholder API is running. Build the web app to see the page.", status = status)
@@ -80,7 +92,11 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
     }
 
     /** jsoup escapes every attribute value and text node it writes, so page content can't break out of a tag. */
-    private fun writeMeta(head: Element, meta: PageMeta, theme: Theme) {
+    private fun writeMeta(
+        head: Element,
+        meta: PageMeta,
+        theme: Theme,
+    ) {
         val url = publicBaseUrl + meta.path
         val image = publicBaseUrl + meta.image
         head.appendElement("title").text(meta.title)
@@ -103,11 +119,17 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
         head.named("twitter:image", image)
     }
 
-    private fun Element.named(name: String, content: String) {
+    private fun Element.named(
+        name: String,
+        content: String,
+    ) {
         appendElement("meta").attr("name", name).attr("content", content)
     }
 
-    private fun Element.property(property: String, content: String) {
+    private fun Element.property(
+        property: String,
+        content: String,
+    ) {
         appendElement("meta").attr("property", property).attr("content", content)
     }
 }

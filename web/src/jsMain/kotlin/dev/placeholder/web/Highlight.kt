@@ -11,8 +11,16 @@ import kotlin.js.json
 @JsModule("highlight.js/lib/common")
 @JsNonModule
 private external object HighlightJs {
-    fun highlight(code: String, options: dynamic): HighlightResult
-    fun highlightAuto(code: String, languageSubset: Array<String>): HighlightResult
+    fun highlight(
+        code: String,
+        options: dynamic,
+    ): HighlightResult
+
+    fun highlightAuto(
+        code: String,
+        languageSubset: Array<String>,
+    ): HighlightResult
+
     fun getLanguage(name: String): Any?
 }
 
@@ -23,27 +31,54 @@ private external interface HighlightResult {
 }
 
 /** What the composer thinks the paste is. */
-data class Detection(val language: String?, val isLink: Boolean) {
-    val label: String get() = when {
-        isLink -> "Link"
-        else -> Languages.name(language)
-    }
+data class Detection(
+    val language: String?,
+    val isLink: Boolean,
+) {
+    val label: String get() =
+        when {
+            isLink -> "Link"
+            else -> Languages.name(language)
+        }
 
     /** The language name the server's formatter understands, if it can format this at all. */
-    fun prettifyAs(content: String): String? = when (language) {
-        "xml" -> if (HTML_HINT.containsMatchIn(content)) "html" else "xml"
-        in Rules.PRETTIFIABLE -> language
-        else -> null
-    }
+    fun prettifyAs(content: String): String? =
+        when (language) {
+            "xml" -> if (HTML_HINT.containsMatchIn(content)) "html" else "xml"
+            in Rules.PRETTIFIABLE -> language
+            else -> null
+        }
 }
 
 private val HTML_HINT =
     Regex("<!doctype|<html|<(div|span|p|a|body|head|section|main|ul|li|img|button)[\\s>]", RegexOption.IGNORE_CASE)
 
-private val SUBSET = arrayOf(
-    "sql", "json", "kotlin", "java", "python", "javascript", "typescript", "xml", "css", "bash", "go", "rust",
-    "yaml", "markdown", "c", "cpp", "csharp", "php", "ruby", "swift", "ini", "diff", "graphql",
-)
+private val SUBSET =
+    arrayOf(
+        "sql",
+        "json",
+        "kotlin",
+        "java",
+        "python",
+        "javascript",
+        "typescript",
+        "xml",
+        "css",
+        "bash",
+        "go",
+        "rust",
+        "yaml",
+        "markdown",
+        "c",
+        "cpp",
+        "csharp",
+        "php",
+        "ruby",
+        "swift",
+        "ini",
+        "diff",
+        "graphql",
+    )
 
 private const val MIN_RELEVANCE = 6
 private const val SAMPLE_CHARS = 6000
@@ -69,11 +104,14 @@ private fun startsLike(content: String): String? {
     val first = content.trimStart()
     return when {
         SQL_START.containsMatchIn(first) -> "sql"
+
         SHELL_START.containsMatchIn(first) -> "bash"
 
         // A heading, or a couple of list or quote lines, is Markdown.
         first.startsWith("#") && MARKDOWN_LINE.containsMatchIn(first) -> "markdown"
+
         MARKDOWN_LINE.findAll(content).count() >= 2 -> "markdown"
+
         else -> null
     }
 }
@@ -84,11 +122,12 @@ private val SENTENCE_END = Regex("[A-Za-z][.!?][\"')]?$")
 
 // Case-sensitive on purpose: code keywords are lowercase (SQL is often all caps), while a sentence like
 // "If we ship Friday" or "Use the new one" starts with a capital.
-private val CODE_START = Regex(
-    "^(select|insert|update|delete|with|create|alter|drop|import|package|from|def|class|fun|val|var|let|const|" +
-        "function|func|fn|pub|use|impl|struct|enum|interface|type|export|return|if|for|while|sudo|git|npm|" +
-        "docker|kubectl|curl|cd|ls|echo|SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER|DROP)\\b|^#include|^#!",
-)
+private val CODE_START =
+    Regex(
+        "^(select|insert|update|delete|with|create|alter|drop|import|package|from|def|class|fun|val|var|let|const|" +
+            "function|func|fn|pub|use|impl|struct|enum|interface|type|export|return|if|for|while|sudo|git|npm|" +
+            "docker|kubectl|curl|cd|ls|echo|SELECT|INSERT|UPDATE|DELETE|WITH|CREATE|ALTER|DROP)\\b|^#include|^#!",
+    )
 
 /**
  * Natural language: plenty of words, sentence punctuation, and almost none of the symbols code is made of.
@@ -109,11 +148,12 @@ private fun looksLikeProse(content: String): Boolean {
 private fun looksLikeJson(content: String): Boolean {
     val trimmed = content.trim()
     if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return false
-    val parsed = try {
-        Json.parseToJsonElement(trimmed)
-    } catch (_: SerializationException) {
-        return false
-    }
+    val parsed =
+        try {
+            Json.parseToJsonElement(trimmed)
+        } catch (_: SerializationException) {
+            return false
+        }
     return parsed is JsonObject || parsed is JsonArray
 }
 
@@ -122,7 +162,10 @@ private fun looksLikeJson(content: String): Boolean {
  * line number. Spans that cross a line break (multi-line strings and comments) are closed at the end of the
  * line and reopened at the start of the next, so every fragment is balanced.
  */
-fun highlightLines(content: String, language: String?): List<String>? {
+fun highlightLines(
+    content: String,
+    language: String?,
+): List<String>? {
     val html = highlightHtml(content.trimEnd('\n'), language) ?: return null
     val lines = mutableListOf<String>()
     val open = ArrayDeque<String>()
@@ -138,6 +181,7 @@ fun highlightLines(content: String, language: String?): List<String>? {
                 line.append(tag)
                 i = end + 1
             }
+
             c == '\n' -> {
                 repeat(open.size) { line.append("</span>") }
                 lines += line.toString()
@@ -145,6 +189,7 @@ fun highlightLines(content: String, language: String?): List<String>? {
                 open.forEach { line.append(it) }
                 i++
             }
+
             else -> {
                 line.append(c)
                 i++
@@ -157,7 +202,10 @@ fun highlightLines(content: String, language: String?): List<String>? {
 }
 
 /** Highlighted HTML for display. highlight.js escapes the source, so the result is safe to set as innerHTML. */
-fun highlightHtml(content: String, language: String?): String? {
+fun highlightHtml(
+    content: String,
+    language: String?,
+): String? {
     if (language == null || HighlightJs.getLanguage(language) == null) return null
     return HighlightJs.highlight(content, json("language" to language, "ignoreIllegals" to true)).value
 }

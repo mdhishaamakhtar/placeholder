@@ -30,18 +30,37 @@ fun Application.installErrorHandling(shell: AppShell) {
 
     install(StatusPages) {
         exception<AppException> { call, e ->
-            val status = when (e) {
-                is InvalidInputException -> HttpStatusCode.BadRequest
-                is PrettifyException -> HttpStatusCode.UnprocessableEntity
-                is PayloadTooLargeException -> HttpStatusCode.PayloadTooLarge
-                is UnauthorizedException -> HttpStatusCode.Unauthorized
-                is ForbiddenException -> HttpStatusCode.Forbidden
-                is ConflictException -> HttpStatusCode.Conflict
-                is RateLimitedException -> {
-                    call.response.header(HttpHeaders.RetryAfter, e.retryAfterSeconds.toString())
-                    HttpStatusCode.TooManyRequests
+            val status =
+                when (e) {
+                    is InvalidInputException -> {
+                        HttpStatusCode.BadRequest
+                    }
+
+                    is PrettifyException -> {
+                        HttpStatusCode.UnprocessableEntity
+                    }
+
+                    is PayloadTooLargeException -> {
+                        HttpStatusCode.PayloadTooLarge
+                    }
+
+                    is UnauthorizedException -> {
+                        HttpStatusCode.Unauthorized
+                    }
+
+                    is ForbiddenException -> {
+                        HttpStatusCode.Forbidden
+                    }
+
+                    is ConflictException -> {
+                        HttpStatusCode.Conflict
+                    }
+
+                    is RateLimitedException -> {
+                        call.response.header(HttpHeaders.RetryAfter, e.retryAfterSeconds.toString())
+                        HttpStatusCode.TooManyRequests
+                    }
                 }
-            }
             call.respond(status, ApiError(e.message.orEmpty()))
         }
         exception<BadRequestException> { call, _ ->
@@ -49,9 +68,10 @@ fun Application.installErrorHandling(shell: AppShell) {
         }
         // Unknown pages still get the app, which shows its "nothing here" screen, but with an honest 404.
         status(HttpStatusCode.NotFound) { call, status ->
-            val wantsPage = call.request.httpMethod == HttpMethod.Get &&
-                !call.request.path().startsWith("/api/") &&
-                call.request.accept()?.contains("text/html") == true
+            val wantsPage =
+                call.request.httpMethod == HttpMethod.Get &&
+                    !call.request.path().startsWith("/api/") &&
+                    call.request.accept()?.contains("text/html") == true
             if (wantsPage) {
                 shell.respond(
                     call,

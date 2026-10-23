@@ -31,6 +31,7 @@ data class AppConfig(
             val app = config.config("placeholder")
 
             fun value(path: String): String? = app.propertyOrNull(path)?.getString()?.takeIf { it.isNotBlank() }
+
             fun required(path: String): String = value(path) ?: error("Missing config value placeholder.$path")
 
             return AppConfig(

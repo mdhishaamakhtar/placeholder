@@ -51,7 +51,10 @@ fun NewPage() {
 }
 
 @Composable
-private fun Editor(from: String?, edit: String?) {
+private fun Editor(
+    from: String?,
+    edit: String?,
+) {
     val ctx = rememberPageContext()
     val scope = rememberCoroutineScope()
     val state = remember { EditorState() }

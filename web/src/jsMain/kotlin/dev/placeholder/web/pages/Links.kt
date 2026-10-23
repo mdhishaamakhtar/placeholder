@@ -78,14 +78,23 @@ fun LinksPage() {
     Shell(title = "Your links") {
         val list = items
         when {
-            list == null && error != null -> StateScreen(error.orEmpty())
-            list == null -> Loading()
-            list.isEmpty() -> StateScreen(
-                lead = "You haven't made any links yet.",
-                sub = "Links you make while signed in show up here, on every device.",
-            ) {
-                Anchor(Paths.NEW, { classes("act") }) { Text("Make one") }
+            list == null && error != null -> {
+                StateScreen(error.orEmpty())
             }
+
+            list == null -> {
+                Loading()
+            }
+
+            list.isEmpty() -> {
+                StateScreen(
+                    lead = "You haven't made any links yet.",
+                    sub = "Links you make while signed in show up here, on every device.",
+                ) {
+                    Anchor(Paths.NEW, { classes("act") }) { Text("Make one") }
+                }
+            }
+
             else -> {
                 Div({ classes("link-list") }) {
                     Ul({ classes("snip-rows") }) {
@@ -135,11 +144,12 @@ private fun LinkRow(item: SnipSummary) {
         slug = item.slug,
         target = target,
         visits = item.visits,
-        detail = when {
-            expired -> "Expired"
-            expiresAt != null -> "Until ${formatDate(expiresAt.toDouble())}"
-            else -> formatDate(item.createdAt.toDouble())
-        },
+        detail =
+            when {
+                expired -> "Expired"
+                expiresAt != null -> "Until ${formatDate(expiresAt.toDouble())}"
+                else -> formatDate(item.createdAt.toDouble())
+            },
         dimmed = expired,
     )
 }

@@ -14,7 +14,8 @@ fun main(args: Array<String>) {
     val cards = PreviewCards(host = args.getOrNull(1) ?: "placeholder.hishaam.dev")
 
     out.resolve("placeholder-preview.png").writeBytes(cards.site)
-    val sample = """
+    val sample =
+        """
         select u.name, count(o.id) as orders
         from users u
         join orders o on o.user_id = u.id
@@ -22,16 +23,17 @@ fun main(args: Array<String>) {
         group by u.name
         order by orders desc
         limit 20;
-    """.trimIndent()
-    val snip = Snip(
-        slug = "M3pZ8Lk",
-        kind = SnipKind.CODE,
-        language = "sql",
-        content = sample,
-        createdAt = System.currentTimeMillis(),
-        lines = sample.lines().size,
-        bytes = sample.length,
-    )
+        """.trimIndent()
+    val snip =
+        Snip(
+            slug = "M3pZ8Lk",
+            kind = SnipKind.CODE,
+            language = "sql",
+            content = sample,
+            createdAt = System.currentTimeMillis(),
+            lines = sample.lines().size,
+            bytes = sample.length,
+        )
     out.resolve("snip-preview.png").writeBytes(cards.snip(snip))
     println("Wrote ${out.absolutePath}/placeholder-preview.png and snip-preview.png")
 }

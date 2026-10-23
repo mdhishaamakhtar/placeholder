@@ -38,36 +38,51 @@ class SnipCache(
     private val coalesced = lookups(registry, "coalesced")
 
     /** A lookup that finds nothing completes with null, which Caffeine doesn't keep: misses go to Redis next time. */
-    private val local: AsyncCache<String, Snip?> = Caffeine.newBuilder()
-        .maximumSize(50_000)
-        .expireAfterAccess(Duration.ofMinutes(10))
-        .buildAsync()
+    private val local: AsyncCache<String, Snip?> =
+        Caffeine
+            .newBuilder()
+            .maximumSize(50_000)
+            .expireAfterAccess(Duration.ofMinutes(10))
+            .buildAsync()
 
     init {
         bus.listen { topic, key -> if (topic == TOPIC) local.synchronous().invalidate(key) }
     }
 
-    suspend fun find(slug: String, now: Long): Snip? {
+    suspend fun find(
+        slug: String,
+        now: Long,
+    ): Snip? {
         var started = false
-        val lookup = local.get(slug) { key, _ ->
-            started = true
-            scope.future { load(key, now) }
-        }
+        val lookup =
+            local.get(slug) { key, _ ->
+                started = true
+                scope.future { load(key, now) }
+            }
         if (!started) (if (lookup.isDone) fromLocal else coalesced).increment()
         // Await a copy: cancelling this request cancels what it awaits, and the shared lookup must outlive it.
         return lookup.copy().await()
     }
 
-    private suspend fun load(slug: String, now: Long): Snip? {
+    private suspend fun load(
+        slug: String,
+        now: Long,
+    ): Snip? {
         when (val cached = redis?.get(key(slug))) {
             MISSING -> {
                 knownMissing.increment()
                 return null
             }
-            null -> Unit
-            else -> decode(cached)?.let {
-                fromRedis.increment()
-                return it
+
+            null -> {
+                Unit
+            }
+
+            else -> {
+                decode(cached)?.let {
+                    fromRedis.increment()
+                    return it
+                }
             }
         }
 
@@ -82,7 +97,10 @@ class SnipCache(
         return snip
     }
 
-    suspend fun insert(snip: Snip, now: Long): Boolean {
+    suspend fun insert(
+        snip: Snip,
+        now: Long,
+    ): Boolean {
         val inserted = repository.insert(snip)
         // Clears a "missing" marker someone may have left by guessing this slug before it existed.
         if (inserted) {
@@ -100,19 +118,23 @@ class SnipCache(
     }
 
     /** Puts [snip] in Redis for the other instances, until it expires or for a day, whichever is sooner. */
-    private suspend fun share(snip: Snip, now: Long) {
+    private suspend fun share(
+        snip: Snip,
+        now: Long,
+    ) {
         val untilExpiry = snip.expiresAt?.let { (it - now) / 1000 }
         val ttl = minOf(HIT_TTL_SECONDS, untilExpiry ?: HIT_TTL_SECONDS)
         if (ttl > 0) redis?.setEx(key(snip.slug), ttl, Json.encodeToString(Snip.serializer(), snip))
     }
 
-    private fun decode(value: String): Snip? = try {
-        Json.decodeFromString(Snip.serializer(), value)
-    } catch (_: SerializationException) {
-        null
-    } catch (_: IllegalArgumentException) {
-        null
-    }
+    private fun decode(value: String): Snip? =
+        try {
+            Json.decodeFromString(Snip.serializer(), value)
+        } catch (_: SerializationException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null
+        }
 
     private fun key(slug: String) = "snip:v2:$slug"
 
@@ -122,7 +144,9 @@ class SnipCache(
         const val MISSING_TTL_SECONDS = 60L
         const val HIT_TTL_SECONDS = 24 * 60 * 60L
 
-        fun lookups(registry: MeterRegistry, layer: String): Counter =
-            Counter.builder("snip.lookups").tag("layer", layer).register(registry)
+        fun lookups(
+            registry: MeterRegistry,
+            layer: String,
+        ): Counter = Counter.builder("snip.lookups").tag("layer", layer).register(registry)
     }
 }

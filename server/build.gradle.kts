@@ -74,5 +74,9 @@ tasks.register<JavaExec>("renderPreviews") {
     description = "Renders sample link-preview cards; the site card is also the README header image."
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("dev.placeholder.server.og.RenderPreviewsKt")
-    args(rootProject.layout.projectDirectory.dir(".github/assets").asFile.absolutePath)
+    args(
+        rootProject.layout.projectDirectory
+            .dir(".github/assets")
+            .asFile.absolutePath,
+    )
 }

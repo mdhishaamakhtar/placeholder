@@ -7,7 +7,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  * so after an edit or sign-out on one instance, the others must hear about it or they'd keep serving the
  * old value. Messages are "<topic>:<key>", e.g. "snip:x7Kq2Ab" or "session:<hash>".
  */
-class InvalidationBus(private val redis: Redis?) {
+class InvalidationBus(
+    private val redis: Redis?,
+) {
     private val listeners = CopyOnWriteArrayList<(topic: String, key: String) -> Unit>()
 
     init {
@@ -19,7 +21,10 @@ class InvalidationBus(private val redis: Redis?) {
     }
 
     /** Evicts locally right away (Redis may be down), then tells the other instances. */
-    suspend fun invalidate(topic: String, key: String) {
+    suspend fun invalidate(
+        topic: String,
+        key: String,
+    ) {
         dispatch("$topic:$key")
         redis?.publish(CHANNEL, "$topic:$key")
     }

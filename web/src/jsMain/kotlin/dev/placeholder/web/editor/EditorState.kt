@@ -15,16 +15,28 @@ import dev.placeholder.web.formatLines
 /** What the editor is doing: making a fresh link, a copy of another one, or changing one you own. */
 sealed interface EditorMode {
     data object Fresh : EditorMode
-    data class CopyOf(val slug: String) : EditorMode
-    data class Editing(val slug: String) : EditorMode
+
+    data class CopyOf(
+        val slug: String,
+    ) : EditorMode
+
+    data class Editing(
+        val slug: String,
+    ) : EditorMode
 }
 
 enum class Busy { NONE, SAVING, PRETTIFYING }
 
 /** The outcome of saving, for the page to act on (show the new link, or go back to the edited one). */
 sealed interface Saved {
-    data class Created(val link: CreateSnipResponse, val summary: String) : Saved
-    data class Updated(val slug: String) : Saved
+    data class Created(
+        val link: CreateSnipResponse,
+        val summary: String,
+    ) : Saved
+
+    data class Updated(
+        val slug: String,
+    ) : Saved
 }
 
 /**
@@ -47,7 +59,9 @@ class EditorState {
     /** Set when the person corrects the detected language; `Pick(null)` means they chose plain text. */
     private var picked by mutableStateOf<Pick?>(null)
 
-    private data class Pick(val language: String?)
+    private data class Pick(
+        val language: String?,
+    )
 
     /** What the paste is treated as: the detector's guess, unless the person picked something else. */
     val detection: Detection?
@@ -79,12 +93,21 @@ class EditorState {
     }
 
     /** Starts from an existing snip: your own to change it in place, anyone's to save as a new link. */
-    suspend fun startFrom(slug: String, wantsToEdit: Boolean) {
+    suspend fun startFrom(
+        slug: String,
+        wantsToEdit: Boolean,
+    ) {
         try {
             val snip = Api.snip(slug)
             when {
-                snip == null -> error = "There's nothing at /$slug to start from."
-                snip.kind == SnipKind.LINK -> error = "/$slug is a short link, so there's no content to edit."
+                snip == null -> {
+                    error = "There's nothing at /$slug to start from."
+                }
+
+                snip.kind == SnipKind.LINK -> {
+                    error = "/$slug is a short link, so there's no content to edit."
+                }
+
                 else -> {
                     text = snip.content
                     redetect()
@@ -111,7 +134,10 @@ class EditorState {
                     Api.update(m.slug, text, language)
                     Saved.Updated(m.slug)
                 }
-                else -> Saved.Created(Api.create(text, language, expiresIn), summary(current))
+
+                else -> {
+                    Saved.Created(Api.create(text, language, expiresIn), summary(current))
+                }
             }
         } catch (e: ApiException) {
             error = e.message
@@ -144,11 +170,12 @@ class EditorState {
         mode = EditorMode.Fresh
     }
 
-    private fun summary(detection: Detection): String = if (detection.isLink) {
-        "Link, redirects to ${text.trim().substringAfter("://").take(SUMMARY_URL_CHARS)}"
-    } else {
-        "${detection.label}, ${linesLabel()}"
-    }
+    private fun summary(detection: Detection): String =
+        if (detection.isLink) {
+            "Link, redirects to ${text.trim().substringAfter("://").take(SUMMARY_URL_CHARS)}"
+        } else {
+            "${detection.label}, ${linesLabel()}"
+        }
 
     fun linesLabel(): String = formatLines(Rules.lineCount(text.trimEnd()))
 

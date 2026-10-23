@@ -18,7 +18,9 @@ import javax.imageio.ImageIO
  * The 1200×630 cards link previews show (Slack, iMessage, X, LinkedIn), drawn at 2x with Java2D in the site's own
  * type and dark palette. One for the site, and one per snip that shows the start of its actual content.
  */
-class PreviewCards(private val host: String) {
+class PreviewCards(
+    private val host: String,
+) {
     private val light = load("hanken-grotesk-300")
     private val regular = load("hanken-grotesk-400")
     private val medium = load("hanken-grotesk-500")
@@ -35,10 +37,11 @@ class PreviewCards(private val host: String) {
         g.drawString("Short links for", PAD, 250)
         g.drawString("links, code, and text.", PAD, 342)
 
-        val rows = listOf(
-            Triple("SQL", "select name, count(*) from orders group by 1;", "sql") to "M3pZ8Lk",
-            Triple("JSON", """{ "service": "billing", "retries": 3 }""", "json") to "R9tA2cd",
-        )
+        val rows =
+            listOf(
+                Triple("SQL", "select name, count(*) from orders group by 1;", "sql") to "M3pZ8Lk",
+                Triple("JSON", """{ "service": "billing", "retries": 3 }""", "json") to "R9tA2cd",
+            )
         var y = 438
         rule(g, y, CodeColors.INK)
         rows.forEach { (source, slug) ->
@@ -54,13 +57,21 @@ class PreviewCards(private val host: String) {
         }
     }
 
-    private fun drawSnip(g: Graphics2D, snip: Snip) {
-        val label = Languages.name(snip.language) +
-            ", " + if (snip.lines == 1) "1 line" else "${snip.lines} lines"
+    private fun drawSnip(
+        g: Graphics2D,
+        snip: Snip,
+    ) {
+        val label =
+            Languages.name(snip.language) +
+                ", " + if (snip.lines == 1) "1 line" else "${snip.lines} lines"
         header(g, right = label)
         rule(g, 120, HAIRLINE)
 
-        val lines = snip.content.lineSequence().take(MAX_LINES).toList()
+        val lines =
+            snip.content
+                .lineSequence()
+                .take(MAX_LINES)
+                .toList()
         val code = snip.kind == SnipKind.CODE
         var y = 186
         lines.forEachIndexed { index, line ->
@@ -93,7 +104,10 @@ class PreviewCards(private val host: String) {
         g.drawString(snip.slug, PAD + g.getFontMetrics(regular.deriveFont(24f)).stringWidth(prefix) + 6, 574)
     }
 
-    private fun header(g: Graphics2D, right: String) {
+    private fun header(
+        g: Graphics2D,
+        right: String,
+    ) {
         g.font = medium.deriveFont(26f)
         g.color = CodeColors.INK
         g.drawString("placeholder", PAD, 84)
@@ -102,7 +116,12 @@ class PreviewCards(private val host: String) {
         g.drawString(right, WIDTH - PAD - g.fontMetrics.stringWidth(right), 84)
     }
 
-    private fun slugAt(g: Graphics2D, slug: String, y: Int, size: Float) {
+    private fun slugAt(
+        g: Graphics2D,
+        slug: String,
+        y: Int,
+        size: Float,
+    ) {
         g.font = regular.deriveFont(size)
         val prefix = "$host/"
         val prefixWidth = g.fontMetrics.stringWidth(prefix)
@@ -117,7 +136,13 @@ class PreviewCards(private val host: String) {
         g.drawString(slug, x + prefixWidth, y)
     }
 
-    private fun drawRuns(g: Graphics2D, runs: List<CodeColors.Run>, startX: Int, y: Int, maxX: Int) {
+    private fun drawRuns(
+        g: Graphics2D,
+        runs: List<CodeColors.Run>,
+        startX: Int,
+        y: Int,
+        maxX: Int,
+    ) {
         var x = startX
         for (run in runs) {
             g.color = run.color
@@ -130,7 +155,11 @@ class PreviewCards(private val host: String) {
         }
     }
 
-    private fun rule(g: Graphics2D, y: Int, color: Color) {
+    private fun rule(
+        g: Graphics2D,
+        y: Int,
+        color: Color,
+    ) {
         g.color = color
         g.fillRect(PAD, y, WIDTH - 2 * PAD, 1)
     }
@@ -158,8 +187,11 @@ class PreviewCards(private val host: String) {
         }
     }
 
-    private fun tracked(font: Font, size: Float, tracking: Float): Font =
-        font.deriveFont(mapOf(TextAttribute.SIZE to size, TextAttribute.TRACKING to tracking))
+    private fun tracked(
+        font: Font,
+        size: Float,
+        tracking: Float,
+    ): Font = font.deriveFont(mapOf(TextAttribute.SIZE to size, TextAttribute.TRACKING to tracking))
 
     private fun load(name: String): Font =
         PreviewCards::class.java.getResourceAsStream("/fonts/$name.ttf").use { stream ->

@@ -35,11 +35,17 @@ object Session {
         }
     }
 
-    suspend fun signIn(email: String, password: String) {
+    suspend fun signIn(
+        email: String,
+        password: String,
+    ) {
         me = Api.signIn(email, password)
     }
 
-    suspend fun signUp(email: String, password: String) {
+    suspend fun signUp(
+        email: String,
+        password: String,
+    ) {
         me = Api.signUp(email, password)
     }
 

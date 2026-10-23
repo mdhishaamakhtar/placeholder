@@ -28,20 +28,24 @@ data class Click(
         private val JSON = Json { ignoreUnknownKeys = true }
 
         /** Reads a message back. Null for one this code can't read, e.g. written by a future version. */
-        fun fromJson(json: String): Click? = try {
-            JSON.decodeFromString(serializer(), json)
-        } catch (_: SerializationException) {
-            null
-        } catch (_: IllegalArgumentException) {
-            null
-        }
+        fun fromJson(json: String): Click? =
+            try {
+                JSON.decodeFromString(serializer(), json)
+            } catch (_: SerializationException) {
+                null
+            } catch (_: IllegalArgumentException) {
+                null
+            }
     }
 }
 
 private object UuidSerializer : KSerializer<UUID> {
     override val descriptor = PrimitiveSerialDescriptor("java.util.UUID", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: UUID) = encoder.encodeString(value.toString())
+    override fun serialize(
+        encoder: Encoder,
+        value: UUID,
+    ) = encoder.encodeString(value.toString())
 
     override fun deserialize(decoder: Decoder): UUID = UUID.fromString(decoder.decodeString())
 }

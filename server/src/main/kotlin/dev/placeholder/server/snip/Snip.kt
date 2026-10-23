@@ -27,22 +27,27 @@ data class Snip(
 
     fun isExpired(now: Long): Boolean = expiresAt != null && expiresAt <= now
 
-    fun toDto(viewer: UUID?) = SnipDto(
-        slug = slug,
-        kind = kind,
-        language = language,
-        content = content,
-        createdAt = createdAt,
-        lines = lines,
-        bytes = bytes,
-        updatedAt = updatedAt,
-        expiresAt = expiresAt,
-        owned = isOwnedBy(viewer),
-    )
+    fun toDto(viewer: UUID?) =
+        SnipDto(
+            slug = slug,
+            kind = kind,
+            language = language,
+            content = content,
+            createdAt = createdAt,
+            lines = lines,
+            bytes = bytes,
+            updatedAt = updatedAt,
+            expiresAt = expiresAt,
+            owned = isOwnedBy(viewer),
+        )
 }
 
 sealed interface Lookup {
-    data class Found(val snip: Snip) : Lookup
+    data class Found(
+        val snip: Snip,
+    ) : Lookup
+
     data object Missing : Lookup
+
     data object Expired : Lookup
 }

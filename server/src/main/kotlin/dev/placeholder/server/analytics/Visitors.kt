@@ -10,10 +10,15 @@ import javax.crypto.spec.SecretKeySpec
  * traced back to an address. The id itself is never stored either: it only goes into HyperLogLog sketches, which
  * keep a few bits of its hash and can't be read back.
  */
-class Visitors(key: String) {
+class Visitors(
+    key: String,
+) {
     private val key = SecretKeySpec(key.encodeToByteArray(), ALGORITHM)
 
-    fun id(ip: String, userAgent: String): String {
+    fun id(
+        ip: String,
+        userAgent: String,
+    ): String {
         // Mac instances aren't thread-safe; making one per call is cheap next to the HMAC itself.
         val mac = Mac.getInstance(ALGORITHM).apply { init(key) }
         val digest = mac.doFinal("$ip\n$userAgent".encodeToByteArray())

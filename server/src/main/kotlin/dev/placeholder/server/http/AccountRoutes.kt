@@ -17,7 +17,12 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 
 /** Sign up, sign in, sign out, and "who am I". */
-fun Route.accountRoutes(accounts: AccountService, limiter: RateLimiter, authPerMinute: Long, secureCookies: Boolean) {
+fun Route.accountRoutes(
+    accounts: AccountService,
+    limiter: RateLimiter,
+    authPerMinute: Long,
+    secureCookies: Boolean,
+) {
     route("/api/account") {
         post("/signup") {
             limiter.check("signup", call.request.origin.remoteHost, limit = authPerMinute)

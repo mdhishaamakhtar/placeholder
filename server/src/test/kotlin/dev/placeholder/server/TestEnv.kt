@@ -13,29 +13,31 @@ object TestEnv {
     private val redis = GenericContainer("redis:8-alpine").withExposedPorts(6379).apply { start() }
     private val kafka = KafkaContainer("apache/kafka:4.4.0").apply { start() }
 
-    private val webRoot = createTempDirectory("web").toFile().apply {
-        resolve("index.html").writeText(
-            "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"theme-color\" content=\"#000000\"></head><body></body></html>",
-        )
-    }
+    private val webRoot =
+        createTempDirectory("web").toFile().apply {
+            resolve("index.html").writeText(
+                "<!DOCTYPE html><html lang=\"en\"><head><meta name=\"theme-color\" content=\"#000000\"></head><body></body></html>",
+            )
+        }
 
     const val BASE_URL = "http://test.local"
 
-    fun config(createsPerMinute: Long = 1000) = AppConfig(
-        publicBaseUrl = BASE_URL,
-        databaseUrl = postgres.jdbcUrl,
-        databaseUser = postgres.username,
-        databasePassword = postgres.password,
-        databasePoolSize = 4,
-        redisUrl = redisUrl,
-        webRoot = webRoot,
-        createsPerMinute = createsPerMinute,
-        trustProxyHeaders = false,
-        authPerMinute = 10_000,
-        kafkaBootstrapServers = kafka.bootstrapServers,
-        kafkaReplicationFactor = 1,
-        visitorKey = "test-visitor-key",
-    )
+    fun config(createsPerMinute: Long = 1000) =
+        AppConfig(
+            publicBaseUrl = BASE_URL,
+            databaseUrl = postgres.jdbcUrl,
+            databaseUser = postgres.username,
+            databasePassword = postgres.password,
+            databasePoolSize = 4,
+            redisUrl = redisUrl,
+            webRoot = webRoot,
+            createsPerMinute = createsPerMinute,
+            trustProxyHeaders = false,
+            authPerMinute = 10_000,
+            kafkaBootstrapServers = kafka.bootstrapServers,
+            kafkaReplicationFactor = 1,
+            visitorKey = "test-visitor-key",
+        )
 
     private val redisUrl: String get() = "redis://${redis.host}:${redis.getMappedPort(6379)}"
 

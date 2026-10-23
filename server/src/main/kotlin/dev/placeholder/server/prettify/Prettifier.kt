@@ -11,29 +11,43 @@ import org.jsoup.parser.Parser
 
 /** Reformats code with JVM-native formatters. Pure and CPU-bound, so callers should run it off the event loop. */
 object Prettifier {
-    private val json = Json {
-        prettyPrint = true
-        prettyPrintIndent = "  "
-    }
+    private val json =
+        Json {
+            prettyPrint = true
+            prettyPrintIndent = "  "
+        }
 
-    fun format(content: String, language: String): String = when (language) {
-        "json" -> formatJson(content)
-        "sql" -> SqlFormatter.format(content, "  ").trim()
-        "xml" -> formatXml(content)
-        "html" -> formatHtml(content)
-        else -> throw PrettifyException("Prettify doesn't support $language yet.")
-    }
+    fun format(
+        content: String,
+        language: String,
+    ): String =
+        when (language) {
+            "json" -> formatJson(content)
+            "sql" -> SqlFormatter.format(content, "  ").trim()
+            "xml" -> formatXml(content)
+            "html" -> formatHtml(content)
+            else -> throw PrettifyException("Prettify doesn't support $language yet.")
+        }
 
-    private fun formatJson(content: String): String = try {
-        json.encodeToString(JsonElement.serializer(), json.parseToJsonElement(content))
-    } catch (e: SerializationException) {
-        val reason = e.message?.lineSequence()?.firstOrNull().orEmpty()
-        throw PrettifyException("That isn't valid JSON, so it can't be prettified. $reason".trim())
-    }
+    private fun formatJson(content: String): String =
+        try {
+            json.encodeToString(JsonElement.serializer(), json.parseToJsonElement(content))
+        } catch (e: SerializationException) {
+            val reason =
+                e.message
+                    ?.lineSequence()
+                    ?.firstOrNull()
+                    .orEmpty()
+            throw PrettifyException("That isn't valid JSON, so it can't be prettified. $reason".trim())
+        }
 
     private fun formatXml(content: String): String {
         val doc = Jsoup.parse(content, "", Parser.xmlParser())
-        doc.outputSettings().prettyPrint(true).indentAmount(2).outline(false)
+        doc
+            .outputSettings()
+            .prettyPrint(true)
+            .indentAmount(2)
+            .outline(false)
         return doc.outerHtml().trim()
     }
 

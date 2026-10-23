@@ -10,7 +10,11 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 /** Liveness, readiness and metrics, for load balancers and Prometheus. */
-fun Route.systemRoutes(database: Database, redis: Redis?, metrics: Metrics) {
+fun Route.systemRoutes(
+    database: Database,
+    redis: Redis?,
+    metrics: Metrics,
+) {
     get("/health") { call.respondText("ok") }
 
     get("/ready") {

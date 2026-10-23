@@ -14,20 +14,25 @@ import org.jetbrains.compose.web.dom.Div
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
-private val EXPIRY_NAMES = mapOf(
-    null to "forever",
-    60L * 60 to "for 1 hour",
-    24L * 60 * 60 to "for 1 day",
-    7L * 24 * 60 * 60 to "for 1 week",
-    30L * 24 * 60 * 60 to "for 30 days",
-)
+private val EXPIRY_NAMES =
+    mapOf(
+        null to "forever",
+        60L * 60 to "for 1 hour",
+        24L * 60 * 60 to "for 1 day",
+        7L * 24 * 60 * 60 to "for 1 week",
+        30L * 24 * 60 * 60 to "for 30 days",
+    )
 
 /**
  * The row under the editor. Left: what the paste is (a menu, so a wrong guess is one click to fix), whether it's a
  * copy or an edit, and Prettify. Right: how long to keep it, then the button that saves it.
  */
 @Composable
-fun EditorFoot(state: EditorState, onPrettify: (String) -> Unit, onSave: () -> Unit) {
+fun EditorFoot(
+    state: EditorState,
+    onPrettify: (String) -> Unit,
+    onSave: () -> Unit,
+) {
     val detection = state.detection
     val mode = state.mode
     val prettifyAs = detection?.prettifyAs(state.text)
@@ -38,11 +43,15 @@ fun EditorFoot(state: EditorState, onPrettify: (String) -> Unit, onSave: () -> U
             attr("aria-live", "polite")
         }) {
             when {
-                detection == null -> Text("Nothing yet")
+                detection == null -> {
+                    Text("Nothing yet")
+                }
+
                 detection.isLink -> {
                     B { Text("Link") }
                     Text(", will redirect")
                 }
+
                 else -> {
                     ChoiceMenu(
                         label = "Language",
@@ -88,8 +97,9 @@ fun EditorFoot(state: EditorState, onPrettify: (String) -> Unit, onSave: () -> U
             SaveButton(state, editing = mode is EditorMode.Editing, onSave = onSave)
         }
 
-        val message = state.error
-            ?: "That's over ${Rules.MAX_CONTENT_BYTES / 1024} KB. Trim it down to save it.".takeIf { state.tooBig }
+        val message =
+            state.error
+                ?: "That's over ${Rules.MAX_CONTENT_BYTES / 1024} KB. Trim it down to save it.".takeIf { state.tooBig }
         if (message != null) {
             Div({
                 classes("notice")
@@ -100,7 +110,10 @@ fun EditorFoot(state: EditorState, onPrettify: (String) -> Unit, onSave: () -> U
 }
 
 @Composable
-private fun SourceNote(label: String, slug: String) {
+private fun SourceNote(
+    label: String,
+    slug: String,
+) {
     Span({ classes("copy-of") }) {
         Text("$label ")
         Anchor(Paths.snip(slug), { classes("quiet-link") }) { Text(slug) }
@@ -108,7 +121,11 @@ private fun SourceNote(label: String, slug: String) {
 }
 
 @Composable
-private fun SaveButton(state: EditorState, editing: Boolean, onSave: () -> Unit) {
+private fun SaveButton(
+    state: EditorState,
+    editing: Boolean,
+    onSave: () -> Unit,
+) {
     val saving = state.busy == Busy.SAVING
     Button({
         classes("button")

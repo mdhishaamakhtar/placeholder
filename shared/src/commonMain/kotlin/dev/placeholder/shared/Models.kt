@@ -25,10 +25,17 @@ data class CreateSnipRequest(
 )
 
 @Serializable
-data class UpdateSnipRequest(val content: String, val language: String? = null)
+data class UpdateSnipRequest(
+    val content: String,
+    val language: String? = null,
+)
 
 @Serializable
-data class CreateSnipResponse(val slug: String, val kind: SnipKind, val url: String)
+data class CreateSnipResponse(
+    val slug: String,
+    val kind: SnipKind,
+    val url: String,
+)
 
 @Serializable
 data class SnipDto(
@@ -86,16 +93,29 @@ data class DayStats(
 )
 
 @Serializable
-data class Credentials(val email: String, val password: String)
+data class Credentials(
+    val email: String,
+    val password: String,
+)
 
 @Serializable
-data class Me(val email: String)
+data class Me(
+    val email: String,
+)
 
 @Serializable
-data class PrettifyRequest(val content: String, val language: String)
+data class PrettifyRequest(
+    val content: String,
+    val language: String,
+)
 
 @Serializable
-data class PrettifyResponse(val content: String, val changed: Boolean)
+data class PrettifyResponse(
+    val content: String,
+    val changed: Boolean,
+)
 
 @Serializable
-data class ApiError(val message: String)
+data class ApiError(
+    val message: String,
+)

@@ -32,7 +32,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** The JSON API the web app talks to. */
-fun Route.snipRoutes(snips: SnipService, clicks: Clicks, limiter: RateLimiter, publicBaseUrl: String) {
+fun Route.snipRoutes(
+    snips: SnipService,
+    clicks: Clicks,
+    limiter: RateLimiter,
+    publicBaseUrl: String,
+) {
     route("/api") {
         post("/snips") {
             call.rejectOversizedBody()
@@ -52,10 +57,12 @@ fun Route.snipRoutes(snips: SnipService, clicks: Clicks, limiter: RateLimiter, p
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.SHORT)
                     call.respond(HttpStatusCode.NotFound, ApiError(Messages.NOT_FOUND))
                 }
+
                 Lookup.Expired -> {
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.SHORT)
                     call.respond(HttpStatusCode.Gone, ApiError(Messages.EXPIRED))
                 }
+
                 is Lookup.Found -> {
                     val snip = found.snip
                     if (call.notModified(snip)) return@get
@@ -108,13 +115,19 @@ object CachePolicy {
     const val IMMUTABLE = "public, max-age=31536000, immutable"
     const val SHORT = "public, max-age=60"
 
-    fun forSnip(snip: Snip, now: Long = System.currentTimeMillis()): String {
+    fun forSnip(
+        snip: Snip,
+        now: Long = System.currentTimeMillis(),
+    ): String {
         if (!snip.isImmutable) return "private, no-cache"
         val expiresAt = snip.expiresAt ?: return IMMUTABLE
         return "public, max-age=${((expiresAt - now) / 1000).coerceAtLeast(0)}"
     }
 
-    fun forRedirect(snip: Snip, now: Long = System.currentTimeMillis()): String {
+    fun forRedirect(
+        snip: Snip,
+        now: Long = System.currentTimeMillis(),
+    ): String {
         if (!snip.isImmutable) return "private, no-cache"
         val day = 86_400L
         val left = snip.expiresAt?.let { ((it - now) / 1000).coerceAtLeast(0) } ?: day

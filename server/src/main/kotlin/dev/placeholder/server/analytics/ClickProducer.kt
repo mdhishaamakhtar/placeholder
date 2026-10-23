@@ -22,7 +22,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * or if the buffer fills, clicks are dropped and counted in `clicks.dropped`. Losing some visits is acceptable,
  * slowing down or failing the redirect is not.
  */
-class ClickProducer(kafka: Kafka, private val topic: String, registry: MeterRegistry) : AutoCloseable {
+class ClickProducer(
+    kafka: Kafka,
+    private val topic: String,
+    registry: MeterRegistry,
+) : AutoCloseable {
     private val log = LoggerFactory.getLogger(ClickProducer::class.java)
     private val producer = kafka.producer()
     private val metrics = KafkaClientMetrics(producer).apply { bindTo(registry) }
@@ -52,16 +56,17 @@ class ClickProducer(kafka: Kafka, private val topic: String, registry: MeterRegi
      * Waits until the producer knows the topic's partitions. It's set never to wait for them on a send, so until it
      * knows them every send fails; this asks until Kafka answers.
      */
-    suspend fun awaitPartitions() = withContext(Dispatchers.IO) {
-        while (true) {
-            try {
-                producer.partitionsFor(topic)
-                return@withContext
-            } catch (_: KafkaException) {
-                delay(RETRY)
+    suspend fun awaitPartitions() =
+        withContext(Dispatchers.IO) {
+            while (true) {
+                try {
+                    producer.partitionsFor(topic)
+                    return@withContext
+                } catch (_: KafkaException) {
+                    delay(RETRY)
+                }
             }
         }
-    }
 
     /** Sends what's still buffered (waiting a few seconds at most), then closes. */
     override fun close() {
@@ -72,7 +77,9 @@ class ClickProducer(kafka: Kafka, private val topic: String, registry: MeterRegi
     private companion object {
         val RETRY = 500.milliseconds
 
-        fun dropped(registry: MeterRegistry, reason: String): Counter =
-            Counter.builder("clicks.dropped").tag("reason", reason).register(registry)
+        fun dropped(
+            registry: MeterRegistry,
+            reason: String,
+        ): Counter = Counter.builder("clicks.dropped").tag("reason", reason).register(registry)
     }
 }

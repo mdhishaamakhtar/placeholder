@@ -20,7 +20,11 @@ import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import kotlinx.serialization.json.Json
 import java.time.Duration
 
-fun Application.installPlugins(config: AppConfig, metrics: Metrics, shell: AppShell) {
+fun Application.installPlugins(
+    config: AppConfig,
+    metrics: Metrics,
+    shell: AppShell,
+) {
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
     }
@@ -42,11 +46,13 @@ fun Application.installPlugins(config: AppConfig, metrics: Metrics, shell: AppSh
         registry = metrics.registry
         // Histogram buckets, so Prometheus can compute p99 across all instances (per-instance percentiles can't be
         // combined). Bounded to the range a request here can take, which keeps the bucket count small.
-        distributionStatisticConfig = DistributionStatisticConfig.Builder()
-            .percentilesHistogram(true)
-            .minimumExpectedValue(Duration.ofMillis(1).toNanos().toDouble())
-            .maximumExpectedValue(Duration.ofSeconds(10).toNanos().toDouble())
-            .build()
+        distributionStatisticConfig =
+            DistributionStatisticConfig
+                .Builder()
+                .percentilesHistogram(true)
+                .minimumExpectedValue(Duration.ofMillis(1).toNanos().toDouble())
+                .maximumExpectedValue(Duration.ofSeconds(10).toNanos().toDouble())
+                .build()
         // Like Ktor's default, label a route by its path, not by the method selector at its end.
         transformRoute { node ->
             readableRoute((if (node.selector is HttpMethodRouteSelector) node.parent ?: node else node).toString())

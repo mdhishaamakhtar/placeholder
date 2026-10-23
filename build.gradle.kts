@@ -13,17 +13,19 @@ plugins {
 // whitespace hygiene.
 spotless {
     val ktlint = libs.versions.ktlint.get()
+    // Named explicitly so Spotless treats it as an input: otherwise an .editorconfig change isn't re-checked.
+    val editorConfig = rootProject.file(".editorconfig")
     val generated = listOf("**/build/**", "**/.gradle/**", "**/.kotlin/**", "**/.kobweb/**")
 
     kotlin {
         target("**/*.kt")
         targetExclude(generated)
-        ktlint(ktlint)
+        ktlint(ktlint).setEditorConfigPath(editorConfig)
     }
     kotlinGradle {
         target("**/*.gradle.kts")
         targetExclude(generated)
-        ktlint(ktlint)
+        ktlint(ktlint).setEditorConfigPath(editorConfig)
     }
     format("text") {
         target("**/*.css", "**/*.sql", "**/*.yml", "**/*.yaml", "**/*.toml", "**/*.json", "**/*.sh", "**/*.conf")

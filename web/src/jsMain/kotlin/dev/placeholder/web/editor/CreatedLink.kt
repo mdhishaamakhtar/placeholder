@@ -15,7 +15,11 @@ import org.jetbrains.compose.web.dom.Text
 
 /** The moment after saving: the new short code as large as the screen allows, and what to do with it. */
 @Composable
-fun CreatedLink(created: CreateSnipResponse, summary: String, onNew: () -> Unit) {
+fun CreatedLink(
+    created: CreateSnipResponse,
+    summary: String,
+    onNew: () -> Unit,
+) {
     Div({ classes("created") }) {
         Div({ classes("host") }) { Text(hostPrefix(created.url)) }
         // Screen readers hear the whole link once; the per-letter spans exist only for the reveal.

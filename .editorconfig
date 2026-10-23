@@ -12,6 +12,8 @@ indent_size = 4
 max_line_length = 120
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
+# ktlint's documented setting for Compose: components are named like types (Shell, SnipRow), by convention.
+ktlint_function_naming_ignore_when_annotated_with = Composable
 
 
 [*.{yml,yaml,json,css,html}]

@@ -40,10 +40,18 @@ import org.jetbrains.compose.web.dom.Text
 
 private sealed interface Load {
     data object Pending : Load
+
     data object Missing : Load
+
     data object Expired : Load
-    data class Failed(val message: String) : Load
-    data class Ready(val snip: SnipDto) : Load
+
+    data class Failed(
+        val message: String,
+    ) : Load
+
+    data class Ready(
+        val snip: SnipDto,
+    ) : Load
 }
 
 @Page("{slug}")
@@ -55,37 +63,52 @@ fun SnipPage() {
 
     LaunchedEffect(slug, attempt) {
         state = Load.Pending
-        state = try {
-            Api.snip(slug)?.let { Load.Ready(it) } ?: Load.Missing
-        } catch (e: ApiException) {
-            if (e.isExpired) Load.Expired else Load.Failed(e.message ?: "Something went wrong.")
-        }
+        state =
+            try {
+                Api.snip(slug)?.let { Load.Ready(it) } ?: Load.Missing
+            } catch (e: ApiException) {
+                if (e.isExpired) Load.Expired else Load.Failed(e.message ?: "Something went wrong.")
+            }
     }
 
     when (val current = state) {
-        Load.Pending -> Shell { Loading() }
-        Load.Missing -> MissingScreen("/$slug")
-        Load.Expired -> Shell(title = "Expired") {
-            StateScreen(
-                lead = Messages.EXPIRED,
-                sub = "Whoever made it chose for it to stop working after a while.",
-            ) {
-                Anchor(Paths.HOME, { classes("act") }) { Text("What is placeholder?") }
+        Load.Pending -> {
+            Shell { Loading() }
+        }
+
+        Load.Missing -> {
+            MissingScreen("/$slug")
+        }
+
+        Load.Expired -> {
+            Shell(title = "Expired") {
+                StateScreen(
+                    lead = Messages.EXPIRED,
+                    sub = "Whoever made it chose for it to stop working after a while.",
+                ) {
+                    Anchor(Paths.HOME, { classes("act") }) { Text("What is placeholder?") }
+                }
             }
         }
-        is Load.Failed -> Shell(title = "Unavailable") {
-            StateScreen(
-                lead = current.message,
-                sub = "Your link is safe. This is a problem loading it, not with the link itself.",
-            ) {
-                Button({
-                    classes("act")
-                    attr("type", "button")
-                    onClick { attempt++ }
-                }) { Text("Try again") }
+
+        is Load.Failed -> {
+            Shell(title = "Unavailable") {
+                StateScreen(
+                    lead = current.message,
+                    sub = "Your link is safe. This is a problem loading it, not with the link itself.",
+                ) {
+                    Button({
+                        classes("act")
+                        attr("type", "button")
+                        onClick { attempt++ }
+                    }) { Text("Try again") }
+                }
             }
         }
-        is Load.Ready -> SnipView(current.snip)
+
+        is Load.Ready -> {
+            SnipView(current.snip)
+        }
     }
 }
 
@@ -113,12 +136,13 @@ private fun SnipView(snip: SnipDto) {
     val label = Languages.name(snip.language)
     val url = "${window.location.origin}/${snip.slug}"
 
-    val details = buildList {
-        add(formatLines(snip.lines))
-        add(formatDate(snip.createdAt.toDouble()))
-        snip.updatedAt?.let { add("edited ${formatDate(it.toDouble())}") }
-        snip.expiresAt?.let { add("expires ${formatDate(it.toDouble())}") }
-    }.joinToString(", ")
+    val details =
+        buildList {
+            add(formatLines(snip.lines))
+            add(formatDate(snip.createdAt.toDouble()))
+            snip.updatedAt?.let { add("edited ${formatDate(it.toDouble())}") }
+            snip.expiresAt?.let { add("expires ${formatDate(it.toDouble())}") }
+        }.joinToString(", ")
 
     Shell(title = label) {
         Div({ classes("view") }) {
@@ -157,9 +181,13 @@ private fun SnipView(snip: SnipDto) {
 @Composable
 private fun CodeSheet(snip: SnipDto) {
     // One row per source line: long lines wrap on their own row, and their number stays beside their start.
-    val lines = remember(snip.content, snip.language) {
-        highlightLines(snip.content, snip.language) ?: snip.content.trimEnd('\n').lines().map(::escapeHtml)
-    }
+    val lines =
+        remember(snip.content, snip.language) {
+            highlightLines(snip.content, snip.language) ?: snip.content
+                .trimEnd('\n')
+                .lines()
+                .map(::escapeHtml)
+        }
     Pre({ classes("sheet") }) {
         lines.forEachIndexed { index, html ->
             Span({ classes("line") }) {
@@ -181,7 +209,10 @@ private fun ProseSheet(snip: SnipDto) {
 }
 
 @Composable
-private fun HighlightedCode(content: String, language: String?) {
+private fun HighlightedCode(
+    content: String,
+    language: String?,
+) {
     val html = remember(content, language) { highlightHtml(content, language) }
     if (html == null) Code { Text(content) } else HtmlCode(html)
 }

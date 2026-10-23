@@ -21,14 +21,20 @@ import org.jetbrains.compose.web.dom.Ul
 import org.w3c.dom.HTMLElement
 
 /** Illustrative examples for the landing page. Not real links. */
-private data class Example(val kind: String, val source: String, val language: String?, val slug: String)
-
-private val EXAMPLES = listOf(
-    Example("Link", "https://github.com/hishaam/placeholder/pull/42", null, "aX7kq2B"),
-    Example("SQL", "select name, count(*) from orders group by 1;", "sql", "M3pZ8Lk"),
-    Example("JSON", """{ "service": "billing", "retries": 3 }""", "json", "R9tA2cd"),
-    Example("Text", "Notes from Tuesday: ship the beta Friday", null, "Hq4mN7e"),
+private data class Example(
+    val kind: String,
+    val source: String,
+    val language: String?,
+    val slug: String,
 )
+
+private val EXAMPLES =
+    listOf(
+        Example("Link", "https://github.com/hishaam/placeholder/pull/42", null, "aX7kq2B"),
+        Example("SQL", "select name, count(*) from orders group by 1;", "sql", "M3pZ8Lk"),
+        Example("JSON", """{ "service": "billing", "retries": 3 }""", "json", "R9tA2cd"),
+        Example("Text", "Notes from Tuesday: ship the beta Friday", null, "Hq4mN7e"),
+    )
 
 @Page
 @Composable
@@ -99,7 +105,10 @@ fun LandingPage() {
 }
 
 @Composable
-private fun Feature(term: String, description: String) {
+private fun Feature(
+    term: String,
+    description: String,
+) {
     Div({ classes("feature") }) {
         TagElement<HTMLElement>("dt", null) { Text(term) }
         TagElement<HTMLElement>("dd", null) { Text(description) }

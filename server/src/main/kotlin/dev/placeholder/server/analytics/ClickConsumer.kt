@@ -50,15 +50,16 @@ class ClickConsumer(
      */
     fun start(scope: CoroutineScope): Job {
         val thread = Executors.newSingleThreadExecutor { Thread(it, "click-consumer") }
-        val job = scope.launch(thread.asCoroutineDispatcher()) {
-            kafka.consumer(GROUP, BATCH_SIZE).use { consumer ->
-                KafkaClientMetrics(consumer).use { metrics ->
-                    metrics.bindTo(registry)
-                    consumer.subscribe(listOf(topic))
-                    consume(consumer)
+        val job =
+            scope.launch(thread.asCoroutineDispatcher()) {
+                kafka.consumer(GROUP, BATCH_SIZE).use { consumer ->
+                    KafkaClientMetrics(consumer).use { metrics ->
+                        metrics.bindTo(registry)
+                        consumer.subscribe(listOf(topic))
+                        consume(consumer)
+                    }
                 }
             }
-        }
         job.invokeOnCompletion { thread.shutdown() }
         return job
     }
@@ -66,14 +67,15 @@ class ClickConsumer(
     private suspend fun CoroutineScope.consume(consumer: KafkaConsumer<String, String>) {
         var backoff = MIN_BACKOFF
         while (isActive) {
-            val records = try {
-                runInterruptible { consumer.poll(POLL_TIMEOUT) }
-            } catch (_: InterruptException) {
-                // Cancelled while waiting. Kafka's exception sets the thread's interrupt flag again, which would make
-                // closing the consumer throw too; clear it so the consumer can leave its group cleanly.
-                Thread.interrupted()
-                return
-            }
+            val records =
+                try {
+                    runInterruptible { consumer.poll(POLL_TIMEOUT) }
+                } catch (_: InterruptException) {
+                    // Cancelled while waiting. Kafka's exception sets the thread's interrupt flag again, which would make
+                    // closing the consumer throw too; clear it so the consumer can leave its group cleanly.
+                    Thread.interrupted()
+                    return
+                }
             if (records.isEmpty) continue
             try {
                 ingest(records)
@@ -104,11 +106,12 @@ class ClickConsumer(
     }
 
     private suspend fun ingest(records: ConsumerRecords<String, String>) {
-        val clicks = records.mapNotNull { record ->
-            val click = Click.fromJson(record.value())
-            if (click == null) log.warn("Skipping unreadable click at {}", record.offset())
-            click
-        }
+        val clicks =
+            records.mapNotNull { record ->
+                val click = Click.fromJson(record.value())
+                if (click == null) log.warn("Skipping unreadable click at {}", record.offset())
+                click
+            }
         unreadable.increment((records.count() - clicks.size).toDouble())
         if (clicks.isEmpty()) return
         val started = System.nanoTime()

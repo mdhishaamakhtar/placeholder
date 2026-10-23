@@ -23,10 +23,16 @@ private const val LIVE_HIGHLIGHT_LIMIT = 40_000
  * sits exactly behind it (same font, size, wrapping, and scroll position) so code is colored as you type.
  */
 @Composable
-fun Composer(text: String, language: String?, onText: (String) -> Unit, onSubmit: () -> Unit) {
-    val highlighted = remember(text, language) {
-        if (text.length > LIVE_HIGHLIGHT_LIMIT) null else highlightHtml(text, language)
-    }
+fun Composer(
+    text: String,
+    language: String?,
+    onText: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    val highlighted =
+        remember(text, language) {
+            if (text.length > LIVE_HIGHLIGHT_LIMIT) null else highlightHtml(text, language)
+        }
     var overlay by remember { mutableStateOf<HTMLElement?>(null) }
 
     Div({ classes("stage") }) {

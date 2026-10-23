@@ -35,7 +35,12 @@ class Clicks(
     private val ready = CompletableDeferred<Unit>()
 
     /** Counts a visit to [slug], unless it came from a bot. Returns at once; the count lands a moment later. */
-    fun record(slug: String, ip: String, userAgent: String?, now: Long = System.currentTimeMillis()) {
+    fun record(
+        slug: String,
+        ip: String,
+        userAgent: String?,
+        now: Long = System.currentTimeMillis(),
+    ) {
         if (userAgent == null || Bots.isBot(userAgent)) return
         producer.record(Click(UUID.randomUUID(), slug, now, visitors.id(ip, userAgent)))
     }
@@ -44,14 +49,15 @@ class Clicks(
      * Starts the background work, which stops when [scope] does: getting the topic and the producer ready, and
      * consuming. The job completes once it has all wound down.
      */
-    fun start(scope: CoroutineScope): Job = scope.launch {
-        launch {
-            ensureTopic()
-            producer.awaitPartitions()
-            ready.complete(Unit)
+    fun start(scope: CoroutineScope): Job =
+        scope.launch {
+            launch {
+                ensureTopic()
+                producer.awaitPartitions()
+                ready.complete(Unit)
+            }
+            consumer.start(this)
         }
-        consumer.start(this)
-    }
 
     /**
      * Waits up to [timeout] for the producer to be able to send, so a server that has just started doesn't drop the
@@ -79,8 +85,10 @@ class Clicks(
         return page.copy(items = page.items.map { it.copy(visits = visits[it.slug] ?: 0L) })
     }
 
-    suspend fun stats(slug: String, now: Long = System.currentTimeMillis()): LinkStats =
-        store.stats(slug, today = LocalDate.ofInstant(Instant.ofEpochMilli(now), ZoneOffset.UTC))
+    suspend fun stats(
+        slug: String,
+        now: Long = System.currentTimeMillis(),
+    ): LinkStats = store.stats(slug, today = LocalDate.ofInstant(Instant.ofEpochMilli(now), ZoneOffset.UTC))
 
     /** Sends the clicks the producer still holds. */
     override fun close() = producer.close()

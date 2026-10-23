@@ -21,7 +21,10 @@ import org.w3c.fetch.Response
 import kotlin.js.json
 
 /** A failure with a sentence that is safe and useful to show the person. */
-class ApiException(val status: Int, message: String) : RuntimeException(message) {
+class ApiException(
+    val status: Int,
+    message: String,
+) : RuntimeException(message) {
     /** The link existed but has expired (410 Gone). */
     val isExpired: Boolean get() = status == GONE
 }
@@ -33,33 +36,48 @@ private const val GONE = 410
 object Api {
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun create(content: String, language: String?, expiresInSeconds: Long?): CreateSnipResponse = send(
-        "POST",
-        "/api/snips",
-        json.encodeToString(CreateSnipRequest.serializer(), CreateSnipRequest(content, language, expiresInSeconds)),
-    )
-        .let { json.decodeFromString(CreateSnipResponse.serializer(), it) }
+    suspend fun create(
+        content: String,
+        language: String?,
+        expiresInSeconds: Long?,
+    ): CreateSnipResponse =
+        send(
+            "POST",
+            "/api/snips",
+            json.encodeToString(CreateSnipRequest.serializer(), CreateSnipRequest(content, language, expiresInSeconds)),
+        ).let { json.decodeFromString(CreateSnipResponse.serializer(), it) }
 
-    suspend fun update(slug: String, content: String, language: String?): SnipDto = send(
-        "PUT",
-        "/api/snips/$slug",
-        json.encodeToString(UpdateSnipRequest.serializer(), UpdateSnipRequest(content, language)),
-    )
-        .let { json.decodeFromString(SnipDto.serializer(), it) }
+    suspend fun update(
+        slug: String,
+        content: String,
+        language: String?,
+    ): SnipDto =
+        send(
+            "PUT",
+            "/api/snips/$slug",
+            json.encodeToString(UpdateSnipRequest.serializer(), UpdateSnipRequest(content, language)),
+        ).let { json.decodeFromString(SnipDto.serializer(), it) }
 
-    suspend fun mySnips(before: String?): SnipPage = get(
-        "/api/me/snips" + (
-            before?.let {
-                "?before=$it"
-            } ?: ""
+    suspend fun mySnips(before: String?): SnipPage =
+        get(
+            "/api/me/snips" + (
+                before?.let {
+                    "?before=$it"
+                } ?: ""
             ),
-    ).let { json.decodeFromString(SnipPage.serializer(), it) }
+        ).let { json.decodeFromString(SnipPage.serializer(), it) }
 
-    suspend fun signUp(email: String, password: String): Me =
+    suspend fun signUp(
+        email: String,
+        password: String,
+    ): Me =
         send("POST", "/api/account/signup", json.encodeToString(Credentials.serializer(), Credentials(email, password)))
             .let { json.decodeFromString(Me.serializer(), it) }
 
-    suspend fun signIn(email: String, password: String): Me =
+    suspend fun signIn(
+        email: String,
+        password: String,
+    ): Me =
         send("POST", "/api/account/signin", json.encodeToString(Credentials.serializer(), Credentials(email, password)))
             .let { json.decodeFromString(Me.serializer(), it) }
 
@@ -74,12 +92,15 @@ object Api {
         return json.decodeFromString(Me.serializer(), response.ensureOk())
     }
 
-    suspend fun prettify(content: String, language: String): PrettifyResponse = send(
-        "POST",
-        "/api/prettify",
-        json.encodeToString(PrettifyRequest.serializer(), PrettifyRequest(content, language)),
-    )
-        .let { json.decodeFromString(PrettifyResponse.serializer(), it) }
+    suspend fun prettify(
+        content: String,
+        language: String,
+    ): PrettifyResponse =
+        send(
+            "POST",
+            "/api/prettify",
+            json.encodeToString(PrettifyRequest.serializer(), PrettifyRequest(content, language)),
+        ).let { json.decodeFromString(PrettifyResponse.serializer(), it) }
 
     /** Returns null when nothing lives at the slug. Expired links throw an [ApiException] with status 410. */
     suspend fun snip(slug: String): SnipDto? {
@@ -90,34 +111,42 @@ object Api {
 
     private suspend fun get(path: String): String = request { window.fetch(path).await() }.ensureOk()
 
-    private suspend fun send(method: String, path: String, body: String): String {
-        val response = request {
-            window.fetch(
-                path,
-                RequestInit(method = method, headers = json("Content-Type" to "application/json"), body = body),
-            ).await()
-        }
+    private suspend fun send(
+        method: String,
+        path: String,
+        body: String,
+    ): String {
+        val response =
+            request {
+                window
+                    .fetch(
+                        path,
+                        RequestInit(method = method, headers = json("Content-Type" to "application/json"), body = body),
+                    ).await()
+            }
         return response.ensureOk()
     }
 
     /** fetch() rejects only when the request never got an answer (offline, DNS, CORS); that's what this reports. */
-    private suspend fun request(block: suspend () -> Response): Response = try {
-        block()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Throwable) {
-        throw ApiException(0, "Couldn't reach the server. Check your connection and try again.")
-    }
+    private suspend fun request(block: suspend () -> Response): Response =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            throw ApiException(0, "Couldn't reach the server. Check your connection and try again.")
+        }
 
     private suspend fun Response.ensureOk(): String {
         val text = text().await()
         if (ok) return text
-        val message = try {
-            json.decodeFromString(ApiError.serializer(), text).message
-        } catch (_: SerializationException) {
-            // Not one of our error bodies (a proxy's error page, say): say so plainly instead.
-            Messages.SERVER_ERROR
-        }
+        val message =
+            try {
+                json.decodeFromString(ApiError.serializer(), text).message
+            } catch (_: SerializationException) {
+                // Not one of our error bodies (a proxy's error page, say): say so plainly instead.
+                Messages.SERVER_ERROR
+            }
         throw ApiException(status.toInt(), message)
     }
 }

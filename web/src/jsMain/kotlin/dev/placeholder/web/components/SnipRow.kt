@@ -14,8 +14,14 @@ import org.jetbrains.compose.web.dom.Text
 /** Where a row leads: nowhere (an illustration), in-app, or through the server (short links redirect there). */
 sealed interface RowTarget {
     data object None : RowTarget
-    data class InApp(val path: String) : RowTarget
-    data class Server(val path: String) : RowTarget
+
+    data class InApp(
+        val path: String,
+    ) : RowTarget
+
+    data class Server(
+        val path: String,
+    ) : RowTarget
 }
 
 /**
@@ -55,6 +61,7 @@ fun SnipRow(
 
                 // The link covers the whole row (see .row-link in styles.css), not just the slug.
                 is RowTarget.InApp -> Anchor(target.path, { classes("row-link") }) { Text(slug) }
+
                 is RowTarget.Server -> A(target.path, { classes("row-link") }) { Text(slug) }
             }
         }

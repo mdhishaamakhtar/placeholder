@@ -31,7 +31,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /** The frame every page shares: wordmark top-left, two quiet links top-right, the page below. */
 @Composable
-fun Shell(title: String? = null, content: @Composable () -> Unit) {
+fun Shell(
+    title: String? = null,
+    content: @Composable () -> Unit,
+) {
     val path = rememberPageContext().route.path
     LaunchedEffect(title) { document.title = if (title == null) "placeholder" else "$title · placeholder" }
     LaunchedEffect(path) { Navigation.visited(path) }
@@ -72,13 +75,21 @@ private fun ThemeToggle() {
 }
 
 @Composable
-private fun NavLink(href: String, label: String, current: String) {
+private fun NavLink(
+    href: String,
+    label: String,
+    current: String,
+) {
     Anchor(href, { if (current == href) attr("aria-current", "page") }) { Text(label) }
 }
 
 /** A text action whose label crossfades to a confirmation, then back. */
 @Composable
-fun CopyAction(value: String, label: String = "Copy link", done: String = "Copied") {
+fun CopyAction(
+    value: String,
+    label: String = "Copy link",
+    done: String = "Copied",
+) {
     val scope = rememberCoroutineScope()
     var copied by remember { mutableStateOf(false) }
     Button({
@@ -87,7 +98,9 @@ fun CopyAction(value: String, label: String = "Copy link", done: String = "Copie
         onClick {
             scope.launch {
                 try {
-                    window.navigator.clipboard.writeText(value).await()
+                    window.navigator.clipboard
+                        .writeText(value)
+                        .await()
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Throwable) {

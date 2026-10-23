@@ -27,13 +27,14 @@ class Maintenance(
 ) {
     private val log = LoggerFactory.getLogger(Maintenance::class.java)
 
-    fun start(scope: CoroutineScope): Job = scope.launch {
-        delay(1.minutes)
-        while (isActive) {
-            runOnce()
-            delay(1.hours)
+    fun start(scope: CoroutineScope): Job =
+        scope.launch {
+            delay(1.minutes)
+            while (isActive) {
+                runOnce()
+                delay(1.hours)
+            }
         }
-    }
 
     suspend fun runOnce() {
         // Another instance holds this hour's lock: it's doing the work. No Redis (null): run anyway, deletes are idempotent.

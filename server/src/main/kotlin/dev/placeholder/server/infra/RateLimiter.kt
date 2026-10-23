@@ -6,8 +6,16 @@ import dev.placeholder.server.RateLimitedException
  * Fixed one-minute windows counted in Redis, so every server instance shares the same budget per client.
  * Fails open: if Redis is unavailable the request is allowed rather than taking the site down.
  */
-class RateLimiter(private val redis: Redis?, private val perMinute: Long) {
-    suspend fun check(bucket: String, client: String, limit: Long = perMinute, now: Long = System.currentTimeMillis()) {
+class RateLimiter(
+    private val redis: Redis?,
+    private val perMinute: Long,
+) {
+    suspend fun check(
+        bucket: String,
+        client: String,
+        limit: Long = perMinute,
+        now: Long = System.currentTimeMillis(),
+    ) {
         if (redis == null || limit <= 0) return
         val window = now / WINDOW_MILLIS
         // The counter outlives its window by a second, so a request at the boundary still finds it.

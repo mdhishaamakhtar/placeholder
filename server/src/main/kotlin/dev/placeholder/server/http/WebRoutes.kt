@@ -32,7 +32,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Short links, raw views, preview images, and the web app itself. Regex routes match without the leading slash. */
-fun Route.webRoutes(snips: SnipService, clicks: Clicks, webRoot: File?, shell: AppShell, cards: PreviewCards) {
+fun Route.webRoutes(
+    snips: SnipService,
+    clicks: Clicks,
+    webRoot: File?,
+    shell: AppShell,
+    cards: PreviewCards,
+) {
     val slug = "(?<slug>[${Rules.SLUG_ALPHABET}]{${Rules.SLUG_LENGTH}})"
     // Rendering a card takes a few milliseconds; a crawler storm for one popular link shouldn't redo it each time.
     val renderedCards: Cache<String, ByteArray> = Caffeine.newBuilder().maximumSize(2_000).build()
@@ -49,10 +55,11 @@ fun Route.webRoutes(snips: SnipService, clicks: Clicks, webRoot: File?, shell: A
             call.respondBytes(cards.site, ContentType.Image.PNG)
             return@get
         }
-        val png = renderedCards.getIfPresent("${snip.slug}:${snip.version}")
-            ?: withContext(Dispatchers.Default) {
-                cards.snip(snip)
-            }.also { renderedCards.put("${snip.slug}:${snip.version}", it) }
+        val png =
+            renderedCards.getIfPresent("${snip.slug}:${snip.version}")
+                ?: withContext(Dispatchers.Default) {
+                    cards.snip(snip)
+                }.also { renderedCards.put("${snip.slug}:${snip.version}", it) }
         // Short-lived even for owned snips: the card shows content, which an owner can edit.
         call.response.header(
             HttpHeaders.CacheControl,
@@ -63,8 +70,14 @@ fun Route.webRoutes(snips: SnipService, clicks: Clicks, webRoot: File?, shell: A
 
     get(Regex("$slug/raw")) {
         when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
-            Lookup.Missing -> call.respondText("${Messages.NOT_FOUND}\n", status = HttpStatusCode.NotFound)
-            Lookup.Expired -> call.respondText("${Messages.EXPIRED}\n", status = HttpStatusCode.Gone)
+            Lookup.Missing -> {
+                call.respondText("${Messages.NOT_FOUND}\n", status = HttpStatusCode.NotFound)
+            }
+
+            Lookup.Expired -> {
+                call.respondText("${Messages.EXPIRED}\n", status = HttpStatusCode.Gone)
+            }
+
             is Lookup.Found -> {
                 call.response.header(HttpHeaders.CacheControl, CachePolicy.forSnip(found.snip))
                 call.respondText(found.snip.content, ContentType.Text.Plain.withParameter("charset", "utf-8"))
@@ -76,12 +89,18 @@ fun Route.webRoutes(snips: SnipService, clicks: Clicks, webRoot: File?, shell: A
         val path = "/${call.parameters["slug"]}"
         when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
             // The 404 handler in ErrorHandling.kt serves the app, which shows the "nothing here" screen.
-            Lookup.Missing -> call.respond(HttpStatusCode.NotFound)
-            Lookup.Expired -> shell.respond(
-                call,
-                HttpStatusCode.Gone,
-                PageMeta.page("Expired", path, indexable = false),
-            )
+            Lookup.Missing -> {
+                call.respond(HttpStatusCode.NotFound)
+            }
+
+            Lookup.Expired -> {
+                shell.respond(
+                    call,
+                    HttpStatusCode.Gone,
+                    PageMeta.page("Expired", path, indexable = false),
+                )
+            }
+
             is Lookup.Found -> {
                 val snip = found.snip
                 clicks.record(snip.slug, call.request.origin.remoteHost, call.request.userAgent())
@@ -116,7 +135,12 @@ fun Route.webRoutes(snips: SnipService, clicks: Clicks, webRoot: File?, shell: A
 private fun snipMeta(snip: Snip): PageMeta {
     val kind = Languages.name(snip.language)
     val size = if (snip.lines == 1) "1 line" else "${snip.lines} lines"
-    val opening = snip.content.take(400).replace(Regex("\\s+"), " ").trim().take(160)
+    val opening =
+        snip.content
+            .take(400)
+            .replace(Regex("\\s+"), " ")
+            .trim()
+            .take(160)
     return PageMeta(
         title = "$kind, $size · placeholder",
         description = opening.ifEmpty { "Shared with placeholder." },
@@ -129,12 +153,13 @@ private fun snipMeta(snip: Snip): PageMeta {
 }
 
 /** Page titles for the fixed pages. Every path in [Paths.PAGES] must have an entry (checked at startup). */
-private val PAGE_TITLES: Map<String, String?> = mapOf(
-    Paths.HOME to null,
-    Paths.NEW to "New link",
-    Paths.SIGN_IN to "Sign in",
-    Paths.LINKS to "Your links",
-)
+private val PAGE_TITLES: Map<String, String?> =
+    mapOf(
+        Paths.HOME to null,
+        Paths.NEW to "New link",
+        Paths.SIGN_IN to "Sign in",
+        Paths.LINKS to "Your links",
+    )
 
 /** Only the landing page belongs in search results; the rest is personal or transient. */
 private val INDEXABLE_PAGES = setOf(Paths.HOME)

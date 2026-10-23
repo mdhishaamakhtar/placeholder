@@ -14,16 +14,23 @@ object Paths {
     val PAGES = listOf(HOME, NEW, SIGN_IN, LINKS)
 
     fun snip(slug: String) = "/$slug"
+
     fun raw(slug: String) = "/$slug/raw"
+
     fun edit(slug: String) = "$NEW?edit=$slug"
+
     fun copyOf(slug: String) = "$NEW?from=$slug"
 
     /** Sign in (or create an account), then continue to [next]. Only plain same-site paths are followed. */
-    fun signIn(create: Boolean = false, next: String = NEW): String {
-        val params = listOfNotNull(
-            "mode=create".takeIf { create },
-            "next=$next".takeIf { next != NEW && isSafeNext(next) },
-        )
+    fun signIn(
+        create: Boolean = false,
+        next: String = NEW,
+    ): String {
+        val params =
+            listOfNotNull(
+                "mode=create".takeIf { create },
+                "next=$next".takeIf { next != NEW && isSafeNext(next) },
+            )
         return if (params.isEmpty()) SIGN_IN else "$SIGN_IN?" + params.joinToString("&")
     }
 

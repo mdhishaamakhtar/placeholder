@@ -7,7 +7,11 @@ import org.jetbrains.compose.web.dom.Text
 
 /** Empty and error screens: one plain sentence, a quieter one under it, and what you can do next. */
 @Composable
-fun StateScreen(lead: String, sub: String? = null, actions: @Composable () -> Unit = {}) {
+fun StateScreen(
+    lead: String,
+    sub: String? = null,
+    actions: @Composable () -> Unit = {},
+) {
     Div({ classes("state") }) {
         P({ classes("lead") }) { Text(lead) }
         if (sub != null) P({ classes("sub") }) { Text(sub) }
