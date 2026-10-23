@@ -10,6 +10,18 @@ fun formatBytes(bytes: Int): String = when {
 
 fun formatLines(lines: Int): String = if (lines == 1) "1 line" else "$lines lines"
 
+/** "1 visit", "1,204 visits": grouped the way the reader's locale groups digits. */
+fun formatVisits(visits: Long): String = if (visits == 1L) "1 visit" else "${GROUPED.format(visits.toDouble())} visits"
+
+private val GROUPED = Intl.NumberFormat()
+
+/** The browser's own number formatting, which knows every locale's digit grouping. */
+private external object Intl {
+    class NumberFormat {
+        fun format(value: Double): String
+    }
+}
+
 private val MONTHS = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
 fun formatDate(epochMillis: Double): String {

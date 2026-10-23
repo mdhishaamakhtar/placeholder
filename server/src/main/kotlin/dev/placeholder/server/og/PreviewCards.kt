@@ -15,14 +15,14 @@ import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
 /**
- * The 1200×630 cards link previews show (Slack, iMessage, X, LinkedIn), drawn with Java2D in the site's own
+ * The 1200×630 cards link previews show (Slack, iMessage, X, LinkedIn), drawn at 2x with Java2D in the site's own
  * type and dark palette. One for the site, and one per snip that shows the start of its actual content.
  */
 class PreviewCards(private val host: String) {
     private val light = load("hanken-grotesk-300")
     private val regular = load("hanken-grotesk-400")
     private val medium = load("hanken-grotesk-500")
-    private val mono = load("geist-mono-400")
+    private val mono = load("chivo-mono-400")
 
     val site: ByteArray by lazy { render(::drawSite) }
 
@@ -136,9 +136,11 @@ class PreviewCards(private val host: String) {
     }
 
     private fun render(draw: (Graphics2D) -> Unit): ByteArray {
-        val image = BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB)
+        val image = BufferedImage(PIXEL_WIDTH, PIXEL_HEIGHT, BufferedImage.TYPE_INT_RGB)
         val g = image.createGraphics()
         try {
+            // Layout is in 1200 x 630 points; every point is drawn as SCALE x SCALE pixels.
+            g.scale(SCALE.toDouble(), SCALE.toDouble())
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
             g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON)
@@ -165,8 +167,17 @@ class PreviewCards(private val host: String) {
         }
 
     companion object {
-        const val WIDTH = 1200
-        const val HEIGHT = 630
+        /** The card's layout size, in points: the standard link-preview shape. */
+        private const val WIDTH = 1200
+        private const val HEIGHT = 630
+
+        /**
+         * Pixels per point. Drawn at 2x, a card stays sharp on high-density screens (in chat apps and in the README)
+         * where a 1x card would be stretched and soft. Crawlers accept this size and scale it to fit.
+         */
+        private const val SCALE = 2
+        const val PIXEL_WIDTH = WIDTH * SCALE
+        const val PIXEL_HEIGHT = HEIGHT * SCALE
         private const val PAD = 64
         private const val LINE_HEIGHT = 40
         private const val MAX_LINES = 8

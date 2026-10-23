@@ -32,19 +32,19 @@
 }
 
 @font-face {
-  font-family: "Geist Mono";
+  font-family: "Chivo Mono";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/geist-mono-400.woff2") format("woff2");
+  src: url("/fonts/chivo-mono-400.woff2") format("woff2");
 }
 
 @font-face {
-  font-family: "Geist Mono";
+  font-family: "Chivo Mono";
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/geist-mono-500.woff2") format("woff2");
+  src: url("/fonts/chivo-mono-500.woff2") format("woff2");
 }
 
 /* ---------- Tokens ---------- */
@@ -82,7 +82,7 @@
   /* Type: two families, six roles about 1.125x apart, plus two display sizes for the landing headline and the new
      short code. rem, so browser zoom and the visitor's font-size setting are respected. */
   --sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --mono: "Chivo Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   --type-small: 0.875rem;      /* 14px: nav, actions, metadata, labels, menus, footers */
   --type-code: 0.9375rem;      /* 15px mono: reads as large as 16px sans */
@@ -507,20 +507,32 @@ html, body {
 
 .link-list { min-height: 0; overflow: auto; }
 
-.snip-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+/* The list owns the columns and every row is a subgrid of them, so dates, counts and slugs line up down the list
+   whatever their widths. Lists that show visit counts get a column for them. */
+.snip-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr) auto auto;
+  column-gap: var(--space-5);
+  border-top: 1px solid var(--rule);
+}
+.snip-rows:has(.row-visits) { grid-template-columns: 5ch minmax(0, 1fr) auto auto auto; }
 
 .snip-rows li {
   position: relative;
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 5ch minmax(0, 1fr) auto auto;
-  gap: var(--space-5);
+  grid-template-columns: subgrid;
   align-items: baseline;
   padding: var(--space-4) 0;
   border-bottom: 1px solid var(--hairline);
   font-size: var(--type-small);
 }
 
-.row-kind, .row-detail { color: var(--muted); white-space: nowrap; }
+.row-kind, .row-detail, .row-visits { color: var(--muted); white-space: nowrap; }
+.row-visits, .row-detail { text-align: end; }
 .row-src {
   font-family: var(--mono);
   font-size: var(--type-code);
@@ -553,9 +565,12 @@ html, body {
 /* Landing only: the examples rise in once, staggered. Lists people revisit stay still. */
 .snip-rows.rise-in li { animation: rise 320ms var(--ease-out) both; animation-delay: calc(120ms + var(--i) * 60ms); }
 
+/* Phones keep what a row is for: its content and slug, plus the visit count in your own list. There the host,
+   the same on every row, gives way; the landing examples keep it, since it shows what a short link looks like. */
 @media (max-width: 560px) {
-  .snip-rows li { grid-template-columns: minmax(0, 1fr) auto; }
-  .row-kind, .row-detail { display: none; }
+  .snip-rows { grid-template-columns: minmax(0, 1fr) auto; }
+  .snip-rows:has(.row-visits) { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .row-kind, .row-detail, .snip-rows:has(.row-visits) .row-host { display: none; }
 }
 
 .more { padding-top: var(--space-5); }

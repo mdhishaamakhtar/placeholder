@@ -1,5 +1,7 @@
 package dev.placeholder.server.http
 
+import dev.placeholder.server.og.PreviewCards
+import dev.placeholder.shared.Theme
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -67,9 +69,9 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
             call.respondText("placeholder API is running. Build the web app to see the page.", status = status)
             return
         }
-        val theme = if (call.request.cookies[THEME_COOKIE] == "light") Theme.LIGHT else Theme.DARK
+        val theme = Theme.from(call.request.cookies[Theme.COOKIE])
         val page = template.clone()
-        page.selectFirst("html")?.attr("data-theme", theme.attribute)
+        page.selectFirst("html")?.attr(Theme.ATTRIBUTE, theme.attribute)
         writeMeta(page.head(), meta, theme)
 
         call.response.header(HttpHeaders.CacheControl, "no-cache")
@@ -92,8 +94,8 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
         head.property("og:description", meta.description)
         head.property("og:url", url)
         head.property("og:image", image)
-        head.property("og:image:width", "1200")
-        head.property("og:image:height", "630")
+        head.property("og:image:width", PreviewCards.PIXEL_WIDTH.toString())
+        head.property("og:image:height", PreviewCards.PIXEL_HEIGHT.toString())
         head.property("og:image:alt", meta.imageAlt)
         head.named("twitter:card", "summary_large_image")
         head.named("twitter:title", meta.title)
@@ -107,15 +109,5 @@ class AppShell(webRoot: File?, private val publicBaseUrl: String) {
 
     private fun Element.property(property: String, content: String) {
         appendElement("meta").attr("property", property).attr("content", content)
-    }
-
-    /** Mirrors the browser's own Theme in the web module: the attribute the CSS keys on, and the browser chrome color. */
-    private enum class Theme(val attribute: String, val chrome: String) {
-        DARK("dark", "#000000"),
-        LIGHT("light", "#FFFFFF"),
-    }
-
-    private companion object {
-        const val THEME_COOKIE = "theme"
     }
 }

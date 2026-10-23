@@ -1,7 +1,7 @@
 package dev.placeholder.server.prettify
 
-import dev.placeholder.server.PrettifyException
 import com.github.vertical_blank.sqlformatter.SqlFormatter
+import dev.placeholder.server.PrettifyException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -27,7 +27,8 @@ object Prettifier {
     private fun formatJson(content: String): String = try {
         json.encodeToString(JsonElement.serializer(), json.parseToJsonElement(content))
     } catch (e: SerializationException) {
-        throw PrettifyException("That isn't valid JSON, so it can't be prettified. ${e.message?.lineSequence()?.firstOrNull().orEmpty()}".trim())
+        val reason = e.message?.lineSequence()?.firstOrNull().orEmpty()
+        throw PrettifyException("That isn't valid JSON, so it can't be prettified. $reason".trim())
     }
 
     private fun formatXml(content: String): String {

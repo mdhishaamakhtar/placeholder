@@ -33,7 +33,10 @@ fun EditorFoot(state: EditorState, onPrettify: (String) -> Unit, onSave: () -> U
     val prettifyAs = detection?.prettifyAs(state.text)
 
     Div({ classes("foot") }) {
-        Span({ classes("kind"); attr("aria-live", "polite") }) {
+        Span({
+            classes("kind")
+            attr("aria-live", "polite")
+        }) {
             when {
                 detection == null -> Text("Nothing yet")
                 detection.isLink -> {
@@ -87,7 +90,12 @@ fun EditorFoot(state: EditorState, onPrettify: (String) -> Unit, onSave: () -> U
 
         val message = state.error
             ?: "That's over ${Rules.MAX_CONTENT_BYTES / 1024} KB. Trim it down to save it.".takeIf { state.tooBig }
-        if (message != null) Div({ classes("notice"); attr("role", "alert") }) { Text(message) }
+        if (message != null) {
+            Div({
+                classes("notice")
+                attr("role", "alert")
+            }) { Text(message) }
+        }
     }
 }
 
@@ -118,6 +126,9 @@ private fun SaveButton(state: EditorState, editing: Boolean, onSave: () -> Unit)
                 else -> "Create link"
             },
         )
-        Span({ classes("kbd"); attr("aria-hidden", "true") }) { Text(submitShortcut.label) }
+        Span({
+            classes("kbd")
+            attr("aria-hidden", "true")
+        }) { Text(submitShortcut.label) }
     }
 }

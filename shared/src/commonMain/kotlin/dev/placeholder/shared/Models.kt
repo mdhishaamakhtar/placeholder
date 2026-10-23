@@ -5,9 +5,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class SnipKind {
-    @SerialName("link") LINK,
-    @SerialName("code") CODE,
-    @SerialName("text") TEXT,
+    @SerialName("link")
+    LINK,
+
+    @SerialName("code")
+    CODE,
+
+    @SerialName("text")
+    TEXT,
 }
 
 @Serializable
@@ -20,17 +25,10 @@ data class CreateSnipRequest(
 )
 
 @Serializable
-data class UpdateSnipRequest(
-    val content: String,
-    val language: String? = null,
-)
+data class UpdateSnipRequest(val content: String, val language: String? = null)
 
 @Serializable
-data class CreateSnipResponse(
-    val slug: String,
-    val kind: SnipKind,
-    val url: String,
-)
+data class CreateSnipResponse(val slug: String, val kind: SnipKind, val url: String)
 
 @Serializable
 data class SnipDto(
@@ -57,6 +55,8 @@ data class SnipSummary(
     val createdAt: Long,
     val updatedAt: Long?,
     val expiresAt: Long?,
+    /** All-time visits to the short link, not counting bots. Lands a moment after each visit. */
+    val visits: Long = 0,
 )
 
 @Serializable
@@ -66,28 +66,36 @@ data class SnipPage(
     val nextCursor: String?,
 )
 
+/** Visits to one link, for its owner. */
 @Serializable
-data class Credentials(
-    val email: String,
-    val password: String,
+data class LinkStats(
+    /** All-time visits, not counting bots. */
+    val visits: Long,
+    /** Distinct visitors across [days]. An estimate, within about 2% (HyperLogLog). */
+    val visitors: Long,
+    /** The last 30 days, oldest first, one entry per UTC day including days with no visits. */
+    val days: List<DayStats>,
 )
 
 @Serializable
-data class Me(
-    val email: String,
+data class DayStats(
+    /** ISO date, e.g. "2026-10-23". */
+    val day: String,
+    val visits: Long,
+    val visitors: Long,
 )
 
 @Serializable
-data class PrettifyRequest(
-    val content: String,
-    val language: String,
-)
+data class Credentials(val email: String, val password: String)
 
 @Serializable
-data class PrettifyResponse(
-    val content: String,
-    val changed: Boolean,
-)
+data class Me(val email: String)
+
+@Serializable
+data class PrettifyRequest(val content: String, val language: String)
+
+@Serializable
+data class PrettifyResponse(val content: String, val changed: Boolean)
 
 @Serializable
 data class ApiError(val message: String)

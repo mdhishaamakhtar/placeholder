@@ -28,7 +28,11 @@ jobs:
       # Validates the Gradle wrapper and caches dependencies between runs.
       - uses: gradle/actions/setup-gradle@v6
 
-      # Shared rules on the JVM and in a headless browser, the server suite against real Postgres and Redis
+      # Formatting and lint first: the cheapest failure, and the one most worth catching before review.
+      - name: Format and lint
+        run: ./gradlew spotlessCheck
+
+      # Shared rules on the JVM and in a headless browser, the server suite against real Postgres, Redis and Kafka
       # (Testcontainers uses the runner's Docker), and a production build of the site.
       - name: Test and build
         run: ./gradlew :shared:jvmTest :shared:jsTest :server:test :server:installDist :web:assembleSite

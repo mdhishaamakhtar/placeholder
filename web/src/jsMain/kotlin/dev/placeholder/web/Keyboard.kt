@@ -8,6 +8,13 @@ data class Shortcut(val label: String, val aria: String)
 private val isApple: Boolean = Regex("Mac|iPhone|iPad").containsMatchIn(window.navigator.userAgent)
 
 /** Saving: Command-Enter on Apple devices, Control-Enter elsewhere. */
-val submitShortcut: Shortcut = if (isApple) Shortcut("⌘ Enter", "Meta+Enter") else Shortcut("Ctrl Enter", "Control+Enter")
+val submitShortcut: Shortcut = if (isApple) {
+    Shortcut(
+        "⌘ Enter",
+        "Meta+Enter",
+    )
+} else {
+    Shortcut("Ctrl Enter", "Control+Enter")
+}
 
 fun isSubmitShortcut(key: String, meta: Boolean, ctrl: Boolean): Boolean = key == "Enter" && (meta || ctrl)

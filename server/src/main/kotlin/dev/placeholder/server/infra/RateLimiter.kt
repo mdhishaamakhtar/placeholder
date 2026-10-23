@@ -9,8 +9,15 @@ import dev.placeholder.server.RateLimitedException
 class RateLimiter(private val redis: Redis?, private val perMinute: Long) {
     suspend fun check(bucket: String, client: String, limit: Long = perMinute, now: Long = System.currentTimeMillis()) {
         if (redis == null || limit <= 0) return
-        val window = now / 60_000
-        val count = redis.incrementWindow("rl:$bucket:$client:$window", 61) ?: return
-        if (count > limit) throw RateLimitedException(retryAfterSeconds = 60 - (now / 1000) % 60)
+        val window = now / WINDOW_MILLIS
+        // The counter outlives its window by a second, so a request at the boundary still finds it.
+        val count = redis.incrementWindow("rl:$bucket:$client:$window", WINDOW_SECONDS + 1) ?: return
+        val secondsLeft = WINDOW_SECONDS - (now / 1000) % WINDOW_SECONDS
+        if (count > limit) throw RateLimitedException(retryAfterSeconds = secondsLeft)
+    }
+
+    private companion object {
+        const val WINDOW_SECONDS = 60L
+        const val WINDOW_MILLIS = WINDOW_SECONDS * 1000
     }
 }

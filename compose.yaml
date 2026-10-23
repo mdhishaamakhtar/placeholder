@@ -1,6 +1,9 @@
 # Local infrastructure.
-#   docker compose up -d                      Postgres + Redis only, for ./gradlew :server:run
-#   docker compose --profile stack up -d      the whole thing: 3 app replicas behind nginx on :8080
+#   docker compose up -d                      Postgres, Redis and Kafka only, for ./gradlew :server:run
+#   docker compose --profile stack up -d      the whole thing: 3 app replicas behind nginx on :8080,
+#                                             Prometheus on :9090 and Grafana on :3000
+#   add -f docker/compose.chaos.yaml          routes the app's Postgres, Redis and Kafka traffic through Toxiproxy,
+#                                             for bench/chaos.sh
 name: placeholder
 
 services:
@@ -17,6 +20,7 @@ services:
       interval: 3s
       retries: 20
 
+  # The cache: evicts the least recently used keys when full, keeps nothing on disk. Losing it costs speed, not data.
   redis:
     image: redis:8-alpine
     command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
@@ -25,6 +29,38 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
       retries: 20
+
+  # Click events on their way to Postgres. One broker that is also its own controller (KRaft, no ZooKeeper).
+  # It listens twice: as kafka:29092 for the other containers and as localhost:9092 for a server run with Gradle,
+  # because Kafka tells clients which address to reconnect on and the two can't reach each other's.
+  kafka:
+    image: apache/kafka:4.4.0
+    environment:
+      CLUSTER_ID: placeholder-local-kafka
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # One broker, so one copy of everything. Production runs three brokers and replication factor 3.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # The app creates its topic on purpose; a typo in a producer shouldn't create another.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      # Clicks are kept a week after they're counted, so rollups can be rebuilt by replaying them.
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports: ["9092:9092"]
+    volumes: [kafka:/var/lib/kafka/data]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null"]
+      interval: 5s
+      retries: 30
 
   app:
     profiles: [stack]
@@ -37,6 +73,8 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/placeholder
       DATABASE_POOL_SIZE: "10"
       REDIS_URL: redis://redis:6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      VISITOR_KEY: "${VISITOR_KEY:-local-stack-only}"
       PUBLIC_BASE_URL: http://localhost:8080
       TRUST_PROXY_HEADERS: "true"
       # Raised by bench/run.sh so the create benchmark measures the server, not the rate limiter.
@@ -44,6 +82,7 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
 
   nginx:
     profiles: [stack]
@@ -53,5 +92,28 @@ services:
     depends_on:
       app: { condition: service_healthy }
 
+  prometheus:
+    profiles: [stack]
+    image: prom/prometheus:v3.5.0
+    volumes: ["./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+    depends_on: [app]
+
+  grafana:
+    profiles: [stack]
+    image: grafana/grafana:12.1.1
+    environment:
+      # A local dashboard: open it without signing in. Never expose this configuration publicly.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/placeholder.json
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/etc/grafana/dashboards:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
 volumes:
   postgres:
+  kafka:

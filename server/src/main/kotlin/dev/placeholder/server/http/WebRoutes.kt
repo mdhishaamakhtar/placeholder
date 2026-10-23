@@ -2,11 +2,13 @@ package dev.placeholder.server.http
 
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
+import dev.placeholder.server.analytics.Clicks
 import dev.placeholder.server.og.PreviewCards
 import dev.placeholder.server.snip.Lookup
 import dev.placeholder.server.snip.Snip
 import dev.placeholder.server.snip.SnipService
 import dev.placeholder.shared.Languages
+import dev.placeholder.shared.Messages
 import dev.placeholder.shared.Paths
 import dev.placeholder.shared.Rules
 import dev.placeholder.shared.SnipKind
@@ -16,6 +18,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.EntityTagVersion
 import io.ktor.server.http.content.staticFiles
+import io.ktor.server.plugins.origin
+import io.ktor.server.request.userAgent
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -28,7 +32,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Short links, raw views, preview images, and the web app itself. Regex routes match without the leading slash. */
-fun Route.webRoutes(snips: SnipService, webRoot: File?, shell: AppShell, cards: PreviewCards) {
+fun Route.webRoutes(snips: SnipService, clicks: Clicks, webRoot: File?, shell: AppShell, cards: PreviewCards) {
     val slug = "(?<slug>[${Rules.SLUG_ALPHABET}]{${Rules.SLUG_LENGTH}})"
     // Rendering a card takes a few milliseconds; a crawler storm for one popular link shouldn't redo it each time.
     val renderedCards: Cache<String, ByteArray> = Caffeine.newBuilder().maximumSize(2_000).build()
@@ -46,16 +50,21 @@ fun Route.webRoutes(snips: SnipService, webRoot: File?, shell: AppShell, cards: 
             return@get
         }
         val png = renderedCards.getIfPresent("${snip.slug}:${snip.version}")
-            ?: withContext(Dispatchers.Default) { cards.snip(snip) }.also { renderedCards.put("${snip.slug}:${snip.version}", it) }
+            ?: withContext(Dispatchers.Default) {
+                cards.snip(snip)
+            }.also { renderedCards.put("${snip.slug}:${snip.version}", it) }
         // Short-lived even for owned snips: the card shows content, which an owner can edit.
-        call.response.header(HttpHeaders.CacheControl, if (snip.isImmutable) CachePolicy.forSnip(snip) else "public, max-age=300")
+        call.response.header(
+            HttpHeaders.CacheControl,
+            if (snip.isImmutable) CachePolicy.forSnip(snip) else "public, max-age=300",
+        )
         call.respondBytes(png, ContentType.Image.PNG)
     }
 
     get(Regex("$slug/raw")) {
         when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
-            Lookup.Missing -> call.respondText("Nothing lives at this link.\n", status = HttpStatusCode.NotFound)
-            Lookup.Expired -> call.respondText("This link has expired.\n", status = HttpStatusCode.Gone)
+            Lookup.Missing -> call.respondText("${Messages.NOT_FOUND}\n", status = HttpStatusCode.NotFound)
+            Lookup.Expired -> call.respondText("${Messages.EXPIRED}\n", status = HttpStatusCode.Gone)
             is Lookup.Found -> {
                 call.response.header(HttpHeaders.CacheControl, CachePolicy.forSnip(found.snip))
                 call.respondText(found.snip.content, ContentType.Text.Plain.withParameter("charset", "utf-8"))
@@ -68,9 +77,14 @@ fun Route.webRoutes(snips: SnipService, webRoot: File?, shell: AppShell, cards: 
         when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
             // The 404 handler in ErrorHandling.kt serves the app, which shows the "nothing here" screen.
             Lookup.Missing -> call.respond(HttpStatusCode.NotFound)
-            Lookup.Expired -> shell.respond(call, HttpStatusCode.Gone, PageMeta.page("Expired", path, indexable = false))
+            Lookup.Expired -> shell.respond(
+                call,
+                HttpStatusCode.Gone,
+                PageMeta.page("Expired", path, indexable = false),
+            )
             is Lookup.Found -> {
                 val snip = found.snip
+                clicks.record(snip.slug, call.request.origin.remoteHost, call.request.userAgent())
                 if (snip.kind == SnipKind.LINK) {
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.forRedirect(snip))
                     call.respondRedirect(snip.content, permanent = false)
@@ -124,4 +138,3 @@ private val PAGE_TITLES: Map<String, String?> = mapOf(
 
 /** Only the landing page belongs in search results; the rest is personal or transient. */
 private val INDEXABLE_PAGES = setOf(Paths.HOME)
-

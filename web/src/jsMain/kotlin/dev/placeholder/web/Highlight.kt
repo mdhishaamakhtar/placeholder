@@ -2,6 +2,7 @@ package dev.placeholder.web
 
 import dev.placeholder.shared.Languages
 import dev.placeholder.shared.Rules
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -36,8 +37,8 @@ data class Detection(val language: String?, val isLink: Boolean) {
     }
 }
 
-private val HTML_HINT = Regex("<!doctype|<html|<(div|span|p|a|body|head|section|main|ul|li|img|button)[\\s>]", RegexOption.IGNORE_CASE)
-
+private val HTML_HINT =
+    Regex("<!doctype|<html|<(div|span|p|a|body|head|section|main|ul|li|img|button)[\\s>]", RegexOption.IGNORE_CASE)
 
 private val SUBSET = arrayOf(
     "sql", "json", "kotlin", "java", "python", "javascript", "typescript", "xml", "css", "bash", "go", "rust",
@@ -60,7 +61,8 @@ fun detect(content: String): Detection? {
 
 private val SQL_START = Regex("^(select|insert|update|delete|with|create|alter|drop)\\b", RegexOption.IGNORE_CASE)
 private val MARKDOWN_LINE = Regex("^(#{1,6} |[-*+] |\\d+\\. |> )", RegexOption.MULTILINE)
-private val SHELL_START = Regex("^(\\$ )?(sudo|git|npm|npx|yarn|pnpm|bun|docker|kubectl|curl|wget|cd|ls|echo|brew|ssh|make|\\./)")
+private val SHELL_START =
+    Regex("^(\\$ )?(sudo|git|npm|npx|yarn|pnpm|bun|docker|kubectl|curl|wget|cd|ls|echo|brew|ssh|make|\\./)")
 
 /** One-liners give highlight.js too little to go on; how the line starts is often enough. */
 private fun startsLike(content: String): String? {
@@ -68,6 +70,7 @@ private fun startsLike(content: String): String? {
     return when {
         SQL_START.containsMatchIn(first) -> "sql"
         SHELL_START.containsMatchIn(first) -> "bash"
+
         // A heading, or a couple of list or quote lines, is Markdown.
         first.startsWith("#") && MARKDOWN_LINE.containsMatchIn(first) -> "markdown"
         MARKDOWN_LINE.findAll(content).count() >= 2 -> "markdown"
@@ -78,6 +81,7 @@ private fun startsLike(content: String): String? {
 private const val CODE_SYMBOLS = "{}[]();=<>/\\|&*_`$#@^~%+"
 private val SENTENCE_BREAK = Regex("[a-z][.!?]\\s+[A-Z]")
 private val SENTENCE_END = Regex("[A-Za-z][.!?][\"')]?$")
+
 // Case-sensitive on purpose: code keywords are lowercase (SQL is often all caps), while a sentence like
 // "If we ship Friday" or "Use the new one" starts with a capital.
 private val CODE_START = Regex(
@@ -105,7 +109,12 @@ private fun looksLikeProse(content: String): Boolean {
 private fun looksLikeJson(content: String): Boolean {
     val trimmed = content.trim()
     if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return false
-    return runCatching { Json.parseToJsonElement(trimmed) }.getOrNull().let { it is JsonObject || it is JsonArray }
+    val parsed = try {
+        Json.parseToJsonElement(trimmed)
+    } catch (_: SerializationException) {
+        return false
+    }
+    return parsed is JsonObject || parsed is JsonArray
 }
 
 /**
@@ -146,7 +155,6 @@ fun highlightLines(content: String, language: String?): List<String>? {
     lines += line.toString()
     return lines
 }
-
 
 /** Highlighted HTML for display. highlight.js escapes the source, so the result is safe to set as innerHTML. */
 fun highlightHtml(content: String, language: String?): String? {

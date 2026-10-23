@@ -23,6 +23,7 @@ import dev.placeholder.web.editor.EditorState
 import dev.placeholder.web.editor.Saved
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The editor, at /new. `?from=<slug>` starts from a copy of any link; `?edit=<slug>` edits one you own.
@@ -63,7 +64,7 @@ private fun Editor(from: String?, edit: String?) {
 
     // Detect a beat after typing stops, so a long paste doesn't stall every keystroke.
     LaunchedEffect(state.text) {
-        delay(if (state.text.length > 4000) 220 else 90)
+        delay(if (state.text.length > LONG_TEXT_CHARS) LONG_TEXT_PAUSE else TYPING_PAUSE)
         state.redetect()
     }
 
@@ -101,3 +102,8 @@ private fun Editor(from: String?, edit: String?) {
         )
     }
 }
+
+/** Above this length, detection waits a little longer: highlighting a long paste on every keystroke would lag. */
+private const val LONG_TEXT_CHARS = 4000
+private val TYPING_PAUSE = 90.milliseconds
+private val LONG_TEXT_PAUSE = 220.milliseconds

@@ -19,6 +19,10 @@ jsoup = "1.23.2"
 testcontainers = "2.0.5"
 highlightjs = "11.12.0"
 password4j = "1.8.4"
+datasketches = "9.0.0"
+kafka = "4.4.0"
+spotless = "8.10.4"
+ktlint = "1.8.0"
 
 [libraries]
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
@@ -52,12 +56,15 @@ flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 flyway-postgres = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 password4j = { module = "com.password4j:password4j", version.ref = "password4j" }
+datasketches = { module = "org.apache.datasketches:datasketches-java", version.ref = "datasketches" }
+kafka-clients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 sql-formatter = { module = "com.github.vertical-blank:sql-formatter", version.ref = "sql-formatter" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql", version.ref = "testcontainers" }
+testcontainers-kafka = { module = "org.testcontainers:testcontainers-kafka", version.ref = "testcontainers" }
 testcontainers-junit = { module = "org.testcontainers:testcontainers-junit-jupiter", version.ref = "testcontainers" }
 
 [plugins]
@@ -67,3 +74,4 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kobweb-application = { id = "com.varabyte.kobweb.application", version.ref = "kobweb" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

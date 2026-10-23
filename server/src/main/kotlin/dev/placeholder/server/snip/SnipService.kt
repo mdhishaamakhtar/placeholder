@@ -43,7 +43,12 @@ class SnipService(
         return if (snip.isExpired(now)) Lookup.Expired else Lookup.Found(snip)
     }
 
-    suspend fun update(slug: String, request: UpdateSnipRequest, user: User, now: Long = System.currentTimeMillis()): Snip {
+    suspend fun update(
+        slug: String,
+        request: UpdateSnipRequest,
+        user: User,
+        now: Long = System.currentTimeMillis(),
+    ): Snip {
         val body = parse(request.content, request.language)
         val updated = repository.update(
             slug = slug,
@@ -71,12 +76,17 @@ class SnipService(
         return SnipPage(page, next)
     }
 
-    suspend fun deleteExpired(now: Instant = Instant.now()): Int = repository.deleteExpired(now.minusSeconds(EXPIRED_GRACE_SECONDS))
+    suspend fun deleteExpired(now: Instant = Instant.now()): Int =
+        repository.deleteExpired(now.minusSeconds(EXPIRED_GRACE_SECONDS))
 
     private data class Body(val kind: SnipKind, val language: String?, val content: String)
 
     private fun parse(content: String, requestedLanguage: String?): Body {
-        if (content.isBlank()) throw InvalidInputException("There's nothing to save. Paste a link, code, or text first.")
+        if (content.isBlank()) {
+            throw InvalidInputException(
+                "There's nothing to save. Paste a link, code, or text first.",
+            )
+        }
         val bytes = content.encodeToByteArray().size
         if (bytes > Rules.MAX_CONTENT_BYTES) {
             throw InvalidInputException("That's ${bytes / 1024} KB. The limit is ${Rules.MAX_CONTENT_BYTES / 1024} KB.")

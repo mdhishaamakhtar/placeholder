@@ -1,6 +1,7 @@
 package dev.placeholder.server.infra
 
 import dev.placeholder.server.account.AccountService
+import dev.placeholder.server.analytics.ClickStore
 import dev.placeholder.server.snip.SnipService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -8,16 +9,20 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import java.sql.SQLException
+import java.time.Duration
+import java.time.Instant
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * Hourly housekeeping: deletes expired snips and sessions. A Redis lock means one instance does it per hour;
+ * Hourly housekeeping: deletes expired snips and sessions, and click records nothing needs any more. A Redis lock means one instance does it per hour;
  * without Redis every instance runs it, which is harmless because the deletes are idempotent.
  */
 class Maintenance(
     private val snips: SnipService,
     private val accounts: AccountService,
+    private val clicks: ClickStore,
     private val redis: Redis?,
 ) {
     private val log = LoggerFactory.getLogger(Maintenance::class.java)
@@ -36,8 +41,16 @@ class Maintenance(
         try {
             val removedSnips = snips.deleteExpired()
             val removedSessions = accounts.cleanUp()
-            if (removedSnips + removedSessions > 0) log.info("Cleaned up {} expired snips and {} sessions", removedSnips, removedSessions)
-        } catch (e: Exception) {
+            val removedClicks = clicks.prune(before = Instant.now().minus(CLICK_IDS_KEPT))
+            if (removedSnips + removedSessions + removedClicks > 0) {
+                log.info(
+                    "Cleaned up {} expired snips, {} sessions and {} click records",
+                    removedSnips,
+                    removedSessions,
+                    removedClicks,
+                )
+            }
+        } catch (e: SQLException) {
             log.warn("Cleanup failed, will retry next hour", e)
         }
     }
@@ -45,5 +58,8 @@ class Maintenance(
     private companion object {
         const val LOCK = "lock:maintenance"
         const val LOCK_SECONDS = 55 * 60L
+
+        /** Click ids are only needed to spot redeliveries, which come within minutes; a week is a wide margin. */
+        val CLICK_IDS_KEPT: Duration = Duration.ofDays(7)
     }
 }

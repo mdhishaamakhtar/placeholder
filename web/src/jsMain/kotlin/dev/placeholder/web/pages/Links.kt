@@ -20,8 +20,8 @@ import dev.placeholder.web.ApiException
 import dev.placeholder.web.Session
 import dev.placeholder.web.components.Loading
 import dev.placeholder.web.components.RowTarget
-import dev.placeholder.web.components.SnipRow
 import dev.placeholder.web.components.Shell
+import dev.placeholder.web.components.SnipRow
 import dev.placeholder.web.components.StateScreen
 import dev.placeholder.web.formatDate
 import kotlinx.coroutines.launch
@@ -125,13 +125,16 @@ private fun LinkRow(item: SnipSummary) {
     val kind = if (item.kind == SnipKind.LINK) "Link" else Languages.name(item.language)
     val expiresAt = item.expiresAt
     val expired = expiresAt != null && expiresAt <= Date.now()
+    val path = Paths.snip(item.slug)
+    // Short links go through the server so the redirect happens there; everything else stays in the app.
+    val target = if (item.kind == SnipKind.LINK) RowTarget.Server(path) else RowTarget.InApp(path)
     SnipRow(
         kind = kind,
         preview = item.preview,
         language = item.language.takeIf { item.kind == SnipKind.CODE },
         slug = item.slug,
-        // Short links go through the server so the redirect happens there; everything else stays in the app.
-        target = if (item.kind == SnipKind.LINK) RowTarget.Server(Paths.snip(item.slug)) else RowTarget.InApp(Paths.snip(item.slug)),
+        target = target,
+        visits = item.visits,
         detail = when {
             expired -> "Expired"
             expiresAt != null -> "Until ${formatDate(expiresAt.toDouble())}"

@@ -18,5 +18,8 @@ fun StateScreen(lead: String, sub: String? = null, actions: @Composable () -> Un
 @Composable
 fun Loading() {
     // Hidden for the first 300ms by CSS, so fast loads never flash a loading label.
-    Div({ classes("loading"); attr("role", "status") }) { Text("Loading") }
+    Div({
+        classes("loading")
+        attr("role", "status")
+    }) { Text("Loading") }
 }

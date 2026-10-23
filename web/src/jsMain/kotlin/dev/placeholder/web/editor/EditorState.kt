@@ -10,6 +10,7 @@ import dev.placeholder.web.Api
 import dev.placeholder.web.ApiException
 import dev.placeholder.web.Detection
 import dev.placeholder.web.detect
+import dev.placeholder.web.formatLines
 
 /** What the editor is doing: making a fresh link, a copy of another one, or changing one you own. */
 sealed interface EditorMode {
@@ -42,6 +43,7 @@ class EditorState {
     var expiresIn by mutableStateOf<Long?>(null)
 
     private var detected by mutableStateOf<Detection?>(null)
+
     /** Set when the person corrects the detected language; `Pick(null)` means they chose plain text. */
     private var picked by mutableStateOf<Pick?>(null)
 
@@ -86,8 +88,9 @@ class EditorState {
                 else -> {
                     text = snip.content
                     redetect()
+                    val notYours = wantsToEdit && !snip.owned
                     mode = if (wantsToEdit && snip.owned) EditorMode.Editing(slug) else EditorMode.CopyOf(slug)
-                    if (wantsToEdit && !snip.owned) error = "Only the person who made /$slug can change it, so this will be a copy."
+                    if (notYours) error = "Only the person who made /$slug can change it, so this will be a copy."
                 }
             }
         } catch (e: ApiException) {
@@ -141,13 +144,17 @@ class EditorState {
         mode = EditorMode.Fresh
     }
 
-    private fun summary(detection: Detection): String =
-        if (detection.isLink) "Link, redirects to ${text.trim().substringAfter("://").take(48)}"
-        else "${detection.label}, ${linesLabel()}"
+    private fun summary(detection: Detection): String = if (detection.isLink) {
+        "Link, redirects to ${text.trim().substringAfter("://").take(SUMMARY_URL_CHARS)}"
+    } else {
+        "${detection.label}, ${linesLabel()}"
+    }
 
-    fun linesLabel(): String {
-        val lines = Rules.lineCount(text.trimEnd())
-        return if (lines == 1) "1 line" else "$lines lines"
+    fun linesLabel(): String = formatLines(Rules.lineCount(text.trimEnd()))
+
+    private companion object {
+        /** Enough of a long URL to recognise it in the confirmation, short enough to stay on one line. */
+        const val SUMMARY_URL_CHARS = 48
     }
 }
 

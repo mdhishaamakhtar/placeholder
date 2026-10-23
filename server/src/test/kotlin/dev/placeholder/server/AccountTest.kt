@@ -40,7 +40,7 @@ import kotlin.test.assertTrue
 class AccountTest {
     private fun withApp(block: suspend ApplicationTestBuilder.(newClient: () -> HttpClient) -> Unit) = testApplication {
         val config = TestEnv.config()
-        val components = AppComponents(config, Database(config), Redis(config.redisUrl!!))
+        val components = AppComponents(config, Database(config), Redis(config.redisUrl!!), TestEnv.kafka())
         environment { this.config = MapApplicationConfig() }
         application { configure(components) }
         val newClient = {
@@ -64,23 +64,20 @@ class AccountTest {
             setBody(Credentials(email, password))
         }
 
-    private suspend fun HttpClient.signIn(email: String, password: String): HttpResponse =
-        post("/api/account/signin") {
-            contentType(ContentType.Application.Json)
-            setBody(Credentials(email, password))
-        }
+    private suspend fun HttpClient.signIn(email: String, password: String): HttpResponse = post("/api/account/signin") {
+        contentType(ContentType.Application.Json)
+        setBody(Credentials(email, password))
+    }
 
-    private suspend fun HttpClient.create(content: String, expiresIn: Long? = null) =
-        post("/api/snips") {
-            contentType(ContentType.Application.Json)
-            setBody(CreateSnipRequest(content, "kotlin", expiresIn))
-        }.body<CreateSnipResponse>()
+    private suspend fun HttpClient.create(content: String, expiresIn: Long? = null) = post("/api/snips") {
+        contentType(ContentType.Application.Json)
+        setBody(CreateSnipRequest(content, "kotlin", expiresIn))
+    }.body<CreateSnipResponse>()
 
-    private suspend fun HttpClient.edit(slug: String, content: String) =
-        put("/api/snips/$slug") {
-            contentType(ContentType.Application.Json)
-            setBody(UpdateSnipRequest(content, "kotlin"))
-        }
+    private suspend fun HttpClient.edit(slug: String, content: String) = put("/api/snips/$slug") {
+        contentType(ContentType.Application.Json)
+        setBody(UpdateSnipRequest(content, "kotlin"))
+    }
 
     @Test
     fun signUpSignInAndSignOut() = withApp { newClient ->
@@ -145,7 +142,7 @@ class AccountTest {
         val owned = owner.create("val x = 1")
         // Links made before accounts existed have no owner; nobody may edit those.
         val config = TestEnv.config()
-        val legacy = AppComponents(config, Database(config), null)
+        val legacy = AppComponents(config, Database(config), null, TestEnv.kafka())
         val anonymous = runBlocking { legacy.snips.create(CreateSnipRequest("val y = 1", "kotlin"), null) }
         legacy.close()
 
@@ -172,7 +169,7 @@ class AccountTest {
     @Test
     fun expiredLinksAreGone() {
         val config = TestEnv.config()
-        val components = AppComponents(config, Database(config), Redis(config.redisUrl!!))
+        val components = AppComponents(config, Database(config), Redis(config.redisUrl!!), TestEnv.kafka())
         val twoHoursAgo = System.currentTimeMillis() - 2 * 60 * 60 * 1000
         val snip = runBlocking {
             components.snips.create(CreateSnipRequest("https://example.com", null, 3600), null, now = twoHoursAgo)
@@ -189,8 +186,8 @@ class AccountTest {
     @Test
     fun anEditOnOneInstanceReachesTheOthers() = runBlocking {
         val config = TestEnv.config()
-        val a = AppComponents(config, Database(config), Redis(config.redisUrl!!))
-        val b = AppComponents(config, Database(config), Redis(config.redisUrl))
+        val a = AppComponents(config, Database(config), Redis(config.redisUrl!!), TestEnv.kafka())
+        val b = AppComponents(config, Database(config), Redis(config.redisUrl), TestEnv.kafka())
         try {
             val user = a.accounts.signUp(Credentials(email(), "correct horse battery")).user
             val snip = a.snips.create(CreateSnipRequest("v1", "kotlin"), user)

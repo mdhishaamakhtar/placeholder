@@ -1,0 +1,14 @@
+# Scrapes every app replica. Docker's DNS answers "app" with one address per container, so replicas added
+# with --scale are picked up on the next refresh without touching this file.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: placeholder
+    metrics_path: /metrics
+    dns_sd_configs:
+      - names: [app]
+        type: A
+        port: 8080
+        refresh_interval: 10s

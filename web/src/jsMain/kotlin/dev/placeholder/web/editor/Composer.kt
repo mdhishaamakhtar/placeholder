@@ -30,7 +30,10 @@ fun Composer(text: String, language: String?, onText: (String) -> Unit, onSubmit
     var overlay by remember { mutableStateOf<HTMLElement?>(null) }
 
     Div({ classes("stage") }) {
-        Div({ classes("ghost"); attr("data-hidden", text.isNotEmpty().toString()) }) {
+        Div({
+            classes("ghost")
+            attr("data-hidden", text.isNotEmpty().toString())
+        }) {
             Span({ classes("hint") }) { Text("Paste a link, code, or text.") }
         }
         if (highlighted != null) {

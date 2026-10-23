@@ -42,7 +42,8 @@ class ApiTest {
         useRedis: Boolean = true,
         block: suspend ApplicationTestBuilder.(HttpClient) -> Unit,
     ) = testApplication {
-        val components = AppComponents(config, Database(config), if (useRedis) Redis(config.redisUrl!!) else null)
+        val components =
+            AppComponents(config, Database(config), if (useRedis) Redis(config.redisUrl!!) else null, TestEnv.kafka())
         // Use an empty config so the test doesn't also boot the module listed in application.yaml.
         environment { this.config = MapApplicationConfig() }
         application { configure(components) }
@@ -63,11 +64,10 @@ class ApiTest {
         }
     }
 
-    private suspend fun HttpClient.create(content: String, language: String? = null) =
-        post("/api/snips") {
-            contentType(ContentType.Application.Json)
-            setBody(CreateSnipRequest(content, language))
-        }
+    private suspend fun HttpClient.create(content: String, language: String? = null) = post("/api/snips") {
+        contentType(ContentType.Application.Json)
+        setBody(CreateSnipRequest(content, language))
+    }
 
     @Test
     fun linkRedirects() = withApp { client ->
@@ -140,9 +140,19 @@ class ApiTest {
     @Test
     fun rateLimitsCreates() = withApp(TestEnv.config(createsPerMinute = 3)) { client ->
         // Other tests share this Redis and client address, so start from an empty counter.
-        RedisClient.create(TestEnv.config().redisUrl!!).use { it.connect().use { conn -> conn.sync().del(*conn.sync().keys("rl:create:*").toTypedArray()) } }
+        RedisClient.create(TestEnv.config().redisUrl!!).use {
+            it.connect().use { conn -> conn.sync().del(*conn.sync().keys("rl:create:*").toTypedArray()) }
+        }
         val statuses = (1..4).map { client.create("note $it").status }
-        assertEquals(listOf(HttpStatusCode.Created, HttpStatusCode.Created, HttpStatusCode.Created, HttpStatusCode.TooManyRequests), statuses)
+        assertEquals(
+            listOf(
+                HttpStatusCode.Created,
+                HttpStatusCode.Created,
+                HttpStatusCode.Created,
+                HttpStatusCode.TooManyRequests,
+            ),
+            statuses,
+        )
     }
 
     @Test
@@ -159,7 +169,11 @@ class ApiTest {
                 header(HttpHeaders.AcceptEncoding, "gzip")
             }
             assertEquals(HttpStatusCode.NotFound, response.status, path)
-            assertEquals(1, response.headers.getAll(HttpHeaders.ContentEncoding)?.size ?: 0, "single encoding for $path")
+            assertEquals(
+                1,
+                response.headers.getAll(HttpHeaders.ContentEncoding)?.size ?: 0,
+                "single encoding for $path",
+            )
         }
     }
 
@@ -184,13 +198,16 @@ class ApiTest {
         val doc = Jsoup.parse(page)
         assertTrue(doc.select("script:containsData(alert(1))").isEmpty(), "no script injected")
         assertEquals(hostile, doc.selectFirst("meta[name=description]")!!.attr("content"))
-        assertEquals("/${created.slug}/og.png", doc.selectFirst("meta[property=og:image]")!!.attr("content").substringAfter("test.local"))
+        assertEquals(
+            "/${created.slug}/og.png",
+            doc.selectFirst("meta[property=og:image]")!!.attr("content").substringAfter("test.local"),
+        )
     }
 
     @Test
     fun creatingNeedsAnAccount() = testApplication {
         val config = TestEnv.config()
-        val components = AppComponents(config, Database(config), null)
+        val components = AppComponents(config, Database(config), null, TestEnv.kafka())
         environment { this.config = MapApplicationConfig() }
         application { configure(components) }
         val anonymous = createClient { install(ContentNegotiation) { json() } }

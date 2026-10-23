@@ -39,8 +39,7 @@ object Rules {
         return trimmed.takeIf { linkPattern.matches(it) }
     }
 
-    fun isPlain(language: String?): Boolean =
-        language == null || language == "plaintext" || language == "text"
+    fun isPlain(language: String?): Boolean = language == null || language == "plaintext" || language == "text"
 
     fun lineCount(content: String): Int = if (content.isEmpty()) 0 else content.trimEnd('\n').count { it == '\n' } + 1
 }

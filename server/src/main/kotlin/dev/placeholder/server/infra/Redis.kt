@@ -41,7 +41,9 @@ class Redis(url: String) : AutoCloseable {
     }
 
     /** Like [call], but tells "Redis answered nothing" (a missing key, a refused NX) apart from "Redis didn't answer". */
-    private suspend fun <T> runCatchingRedis(block: (RedisAsyncCommands<String, String>) -> CompletionStage<T>): Reply<T>? {
+    private suspend fun <T> runCatchingRedis(
+        block: (RedisAsyncCommands<String, String>) -> CompletionStage<T>,
+    ): Reply<T>? {
         val cmd = commands ?: return null
         return try {
             withTimeoutOrNull(TIMEOUT) { Reply(block(cmd).await()) }

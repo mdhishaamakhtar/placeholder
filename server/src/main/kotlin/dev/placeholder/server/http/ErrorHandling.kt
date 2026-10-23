@@ -9,6 +9,7 @@ import dev.placeholder.server.PrettifyException
 import dev.placeholder.server.RateLimitedException
 import dev.placeholder.server.UnauthorizedException
 import dev.placeholder.shared.ApiError
+import dev.placeholder.shared.Messages
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -51,11 +52,20 @@ fun Application.installErrorHandling(shell: AppShell) {
             val wantsPage = call.request.httpMethod == HttpMethod.Get &&
                 !call.request.path().startsWith("/api/") &&
                 call.request.accept()?.contains("text/html") == true
-            if (wantsPage) shell.respond(call, status, PageMeta.page("Not found", call.request.path(), indexable = false))
+            if (wantsPage) {
+                shell.respond(
+                    call,
+                    status,
+                    PageMeta.page("Not found", call.request.path(), indexable = false),
+                )
+            }
         }
         exception<Throwable> { call, e ->
             log.error("Unhandled error on {}", call.request.local.uri, e)
-            call.respond(HttpStatusCode.InternalServerError, ApiError("Something broke on our side. Try again in a moment."))
+            call.respond(
+                HttpStatusCode.InternalServerError,
+                ApiError(Messages.SERVER_ERROR),
+            )
         }
     }
 }

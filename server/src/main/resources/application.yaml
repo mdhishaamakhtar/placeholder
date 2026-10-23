@@ -29,3 +29,13 @@ placeholder:
     createsPerMinute: "$CREATES_PER_MINUTE:30"
     # Sign-ups and sign-ins. Password hashing is deliberately slow, so keep this low.
     authPerMinute: "$AUTH_PER_MINUTE:10"
+
+  kafka:
+    # Clicks travel through Kafka on their way to Postgres, so a redirect never waits on a database write.
+    bootstrapServers: "$KAFKA_BOOTSTRAP_SERVERS:localhost:9092"
+    # Copies of each partition. 1 for a single local broker; 3 in production, so a broker can fail without loss.
+    replicationFactor: "$KAFKA_REPLICATION_FACTOR:1"
+
+  analytics:
+    # Secret for anonymous visitor ids. Set a long random value in production, the same on every instance.
+    visitorKey: "$VISITOR_KEY:local-development-only"

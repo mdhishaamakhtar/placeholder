@@ -23,7 +23,7 @@ kobweb {
                     attributes["type"] = "font/woff2"
                     attributes["crossorigin"] = ""
                 }
-                link(rel = "preload", href = "/fonts/geist-mono-400.woff2") {
+                link(rel = "preload", href = "/fonts/chivo-mono-400.woff2") {
                     attributes["as"] = "font"
                     attributes["type"] = "font/woff2"
                     attributes["crossorigin"] = ""
@@ -49,7 +49,7 @@ kotlin {
     }
 }
 
-/** The deployable site: Kobweb's generated index.html and public files, plus the production bundle. */
+// The deployable site: Kobweb's generated index.html and public files, plus the production bundle.
 tasks.register<Sync>("assembleSite") {
     dependsOn("jsBrowserProductionWebpack", "jsProcessResources")
     from(layout.buildDirectory.dir("processedResources/js/main/public")) { exclude("_kobweb/**") }

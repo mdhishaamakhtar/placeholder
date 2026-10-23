@@ -1,6 +1,7 @@
 package dev.placeholder.server.http
 
 import dev.placeholder.server.PayloadTooLargeException
+import dev.placeholder.server.analytics.Clicks
 import dev.placeholder.server.infra.RateLimiter
 import dev.placeholder.server.prettify.Prettifier
 import dev.placeholder.server.snip.Lookup
@@ -9,6 +10,7 @@ import dev.placeholder.server.snip.SnipService
 import dev.placeholder.shared.ApiError
 import dev.placeholder.shared.CreateSnipRequest
 import dev.placeholder.shared.CreateSnipResponse
+import dev.placeholder.shared.Messages
 import dev.placeholder.shared.PrettifyRequest
 import dev.placeholder.shared.PrettifyResponse
 import dev.placeholder.shared.Rules
@@ -30,7 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** The JSON API the web app talks to. */
-fun Route.snipRoutes(snips: SnipService, limiter: RateLimiter, publicBaseUrl: String) {
+fun Route.snipRoutes(snips: SnipService, clicks: Clicks, limiter: RateLimiter, publicBaseUrl: String) {
     route("/api") {
         post("/snips") {
             call.rejectOversizedBody()
@@ -38,18 +40,21 @@ fun Route.snipRoutes(snips: SnipService, limiter: RateLimiter, publicBaseUrl: St
             val user = call.requireUser()
             limiter.check("create", call.clientId())
             val snip = snips.create(call.receive<CreateSnipRequest>(), user)
-            call.respond(HttpStatusCode.Created, CreateSnipResponse(snip.slug, snip.kind, "$publicBaseUrl/${snip.slug}"))
+            call.respond(
+                HttpStatusCode.Created,
+                CreateSnipResponse(snip.slug, snip.kind, "$publicBaseUrl/${snip.slug}"),
+            )
         }
 
         get("/snips/{slug}") {
             when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
                 Lookup.Missing -> {
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.SHORT)
-                    call.respond(HttpStatusCode.NotFound, ApiError("Nothing lives at this link."))
+                    call.respond(HttpStatusCode.NotFound, ApiError(Messages.NOT_FOUND))
                 }
                 Lookup.Expired -> {
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.SHORT)
-                    call.respond(HttpStatusCode.Gone, ApiError("This link has expired."))
+                    call.respond(HttpStatusCode.Gone, ApiError(Messages.EXPIRED))
                 }
                 is Lookup.Found -> {
                     val snip = found.snip
@@ -69,7 +74,19 @@ fun Route.snipRoutes(snips: SnipService, limiter: RateLimiter, publicBaseUrl: St
 
         get("/me/snips") {
             call.response.header(HttpHeaders.CacheControl, "no-store")
-            call.respond(snips.mine(call.requireUser(), call.request.queryParameters["before"]))
+            call.respond(clicks.withVisits(snips.mine(call.requireUser(), call.request.queryParameters["before"])))
+        }
+
+        get("/snips/{slug}/stats") {
+            val user = call.requireUser()
+            call.response.header(HttpHeaders.CacheControl, "no-store")
+            // Someone else's link answers exactly like a missing one: stats don't reveal what exists.
+            val snip = (snips.lookup(call.parameters["slug"].orEmpty()) as? Lookup.Found)?.snip
+            if (snip == null || !snip.isOwnedBy(user.id)) {
+                call.respond(HttpStatusCode.NotFound, ApiError(Messages.NOT_FOUND))
+                return@get
+            }
+            call.respond(clicks.stats(snip.slug))
         }
 
         post("/prettify") {

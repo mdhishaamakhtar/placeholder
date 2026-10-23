@@ -42,6 +42,8 @@ dependencies {
 
     implementation(libs.lettuce)
     implementation(libs.caffeine)
+    implementation(libs.datasketches)
+    implementation(libs.kafka.clients)
     implementation(libs.password4j)
     implementation(libs.kotlinx.coroutines.core)
 
@@ -54,6 +56,7 @@ dependencies {
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.testcontainers.postgresql)
     testImplementation(libs.testcontainers.junit)
+    testImplementation(libs.testcontainers.kafka)
 }
 
 tasks.test {

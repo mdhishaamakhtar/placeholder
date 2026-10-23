@@ -15,9 +15,9 @@ import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 import org.jetbrains.compose.web.dom.Ul
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.NEAREST
 import org.w3c.dom.Node
 import org.w3c.dom.ScrollIntoViewOptions
-import org.w3c.dom.NEAREST
 import org.w3c.dom.ScrollLogicalPosition
 import org.w3c.dom.events.Event
 

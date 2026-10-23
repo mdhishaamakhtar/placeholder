@@ -1,0 +1,31 @@
+# Layered on compose.yaml for the failure experiments (bench/chaos.sh):
+#   docker compose -f compose.yaml -f docker/compose.chaos.yaml --profile stack up -d --build
+# The app reaches Postgres, Redis and Kafka through Toxiproxy, which can cut a connection or slow it down on
+# command (its API is on :8474). Nothing else changes, so a run without faults behaves like the normal stack.
+services:
+  toxiproxy:
+    profiles: [stack]
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes: ["./docker/toxiproxy.json:/config/toxiproxy.json:ro"]
+    ports: ["8474:8474"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
+  # Kafka hands clients the address to reconnect on, so the proxied route needs a listener of its own that
+  # advertises the proxy's address. Otherwise clients would bootstrap through the proxy and then go around it.
+  kafka:
+    environment:
+      KAFKA_LISTENERS: INTERNAL://:29092,EXTERNAL://:9092,CONTROLLER://:9093,PROXIED://:29093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092,PROXIED://toxiproxy:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PROXIED:PLAINTEXT
+
+  app:
+    environment:
+      DATABASE_URL: jdbc:postgresql://toxiproxy:15432/placeholder
+      REDIS_URL: redis://toxiproxy:16379
+      KAFKA_BOOTSTRAP_SERVERS: toxiproxy:19092
+    depends_on:
+      toxiproxy: { condition: service_started }

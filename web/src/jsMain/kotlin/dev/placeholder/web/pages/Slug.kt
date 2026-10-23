@@ -10,19 +10,20 @@ import androidx.compose.runtime.setValue
 import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
-import dev.placeholder.shared.SnipDto
 import dev.placeholder.shared.Languages
+import dev.placeholder.shared.Messages
 import dev.placeholder.shared.Paths
+import dev.placeholder.shared.SnipDto
 import dev.placeholder.shared.SnipKind
 import dev.placeholder.web.Api
 import dev.placeholder.web.ApiException
-import dev.placeholder.web.escapeHtml
 import dev.placeholder.web.Navigation
 import dev.placeholder.web.components.CopyAction
 import dev.placeholder.web.components.HtmlCode
 import dev.placeholder.web.components.Loading
 import dev.placeholder.web.components.Shell
 import dev.placeholder.web.components.StateScreen
+import dev.placeholder.web.escapeHtml
 import dev.placeholder.web.formatDate
 import dev.placeholder.web.formatLines
 import dev.placeholder.web.highlightHtml
@@ -57,7 +58,7 @@ fun SnipPage() {
         state = try {
             Api.snip(slug)?.let { Load.Ready(it) } ?: Load.Missing
         } catch (e: ApiException) {
-            if (e.status == 410) Load.Expired else Load.Failed(e.message ?: "Something went wrong.")
+            if (e.isExpired) Load.Expired else Load.Failed(e.message ?: "Something went wrong.")
         }
     }
 
@@ -66,7 +67,7 @@ fun SnipPage() {
         Load.Missing -> MissingScreen("/$slug")
         Load.Expired -> Shell(title = "Expired") {
             StateScreen(
-                lead = "This link has expired.",
+                lead = Messages.EXPIRED,
                 sub = "Whoever made it chose for it to stop working after a while.",
             ) {
                 Anchor(Paths.HOME, { classes("act") }) { Text("What is placeholder?") }
@@ -77,7 +78,11 @@ fun SnipPage() {
                 lead = current.message,
                 sub = "Your link is safe. This is a problem loading it, not with the link itself.",
             ) {
-                Button({ classes("act"); attr("type", "button"); onClick { attempt++ } }) { Text("Try again") }
+                Button({
+                    classes("act")
+                    attr("type", "button")
+                    onClick { attempt++ }
+                }) { Text("Try again") }
             }
         }
         is Load.Ready -> SnipView(current.snip)
@@ -158,13 +163,15 @@ private fun CodeSheet(snip: SnipDto) {
     Pre({ classes("sheet") }) {
         lines.forEachIndexed { index, html ->
             Span({ classes("line") }) {
-                Span({ classes("no"); attr("aria-hidden", "true") }) { Text((index + 1).toString()) }
+                Span({
+                    classes("no")
+                    attr("aria-hidden", "true")
+                }) { Text((index + 1).toString()) }
                 Code({ classes("src") }) { HtmlCode(html.ifEmpty { " " }) }
             }
         }
     }
 }
-
 
 @Composable
 private fun ProseSheet(snip: SnipDto) {

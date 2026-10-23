@@ -74,8 +74,11 @@ fun SigninPage() {
             }) {
                 P({ classes("lead") }) {
                     Text(
-                        if (creating) "Create an account to keep your links on every device and edit them later."
-                        else "Sign in to see your links on every device.",
+                        if (creating) {
+                            "Create an account to keep your links on every device and edit them later."
+                        } else {
+                            "Sign in to see your links on every device."
+                        },
                     )
                 }
                 Label(attrs = { classes("field") }) {
@@ -125,9 +128,13 @@ fun SigninPage() {
                         Text(if (creating) "I have an account" else "Create an account")
                     }
                 }
-                error?.let { message -> Div({ classes("notice"); attr("role", "alert") }) { Text(message) } }
+                error?.let { message ->
+                    Div({
+                        classes("notice")
+                        attr("role", "alert")
+                    }) { Text(message) }
+                }
             }
         }
     }
 }
-
