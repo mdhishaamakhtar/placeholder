@@ -1,11 +1,15 @@
-# Built from artifacts produced on the host (./gradlew :server:installDist :web:assembleSite),
-# so the image build needs neither Gradle nor Node.
+FROM eclipse-temurin:25-jdk AS build
+
+WORKDIR /src
+COPY . .
+RUN ./gradlew --no-daemon :server:installDist :web:assembleSite
+
 FROM eclipse-temurin:25-jre
 
 RUN useradd --system --uid 10001 app
 WORKDIR /app
-COPY server/build/install/server /app
-COPY web/build/site /app/web
+COPY --from=build /src/server/build/install/server /app
+COPY --from=build /src/web/build/site /app/web
 
 ENV WEB_ROOT=/app/web \
     JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError --enable-native-access=ALL-UNNAMED -Djava.awt.headless=true"

@@ -1,0 +1,9 @@
+.git
+.gradle
+.kotlin
+.idea
+.superpowers
+**/build
+kotlin-js-store
+bench
+docs
