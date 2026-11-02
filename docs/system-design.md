@@ -110,6 +110,7 @@ Every redirect is also a write, so counting visits must not touch the request's 
 - **Keyed by link.** All of a link's clicks land on one partition, so exactly one consumer owns that link's rollup row. Consumers never wait on each other's row locks, which was likely part of the backlog in the Redis Stream version, where any consumer could get any link's clicks.
 - **Durable while Postgres is down.** Consumers commit offsets only after a batch's transaction commits. If Postgres fails, the consumer rewinds to the start of the batch and retries with backoff; Kafka holds the clicks (for 7 days). A consumer that dies stops heartbeating, and after 10 seconds its partitions move to the others, which resume from the last committed offset.
 - **Counted exactly once.** Each click gets a UUID where it happens. Ingest skips ids it has already seen, so a batch redelivered after a crash or a rebalance can't double count ([0004](adr/0004-exactly-once-counting.md)).
+- **A bad record can't stall the rest.** A batch that fails because Postgres is unreachable is retried until it isn't. A batch that fails for a reason no retry will fix (a rollup row that can't be read, a click that violates a constraint) is counted one click at a time: the clicks that fail on their own go to the `clicks.dead` topic with the reason, the others are counted, and the partition moves on ([0009](adr/0009-dead-letter-topic.md)).
 - **Unique visitors without a visitor list.** Each day's visitors go into a HyperLogLog sketch stored next to the count; any range of days is the union of its sketches, within about 2% ([0005](adr/0005-hyperloglog-in-postgres.md)). Visitor ids are an HMAC of IP and user agent, so no address is stored.
 - **Bots don't count.** Link-preview fetchers (Slack, Discord, WhatsApp, crawlers) identify themselves and are skipped.
 - **Ready before serving.** The producer can't send until it knows the topic's partitions, so a starting server waits up to 10 seconds for Kafka before it takes traffic. If Kafka is down, it starts anyway: redirects don't need Kafka.
@@ -132,6 +133,7 @@ What happens when each dependency fails, by design and as measured. Each "measur
 | Postgres slow (+250 ms) | Unaffected for cached links | Slow | Batches slower, nothing lost | 0 errors, all 60,000 counted |
 | An app server dies | nginx retries on another server | Work | Its unsent 20 ms of clicks are lost; its partitions move to the others in 10 s | 0 errors, 59,990 of 60,000 counted |
 | Kafka down over 2 minutes | Unaffected | Work | Clicks past the buffer are dropped and counted in `clicks_dropped_total` | Not measured |
+| A click that can't be counted (a corrupt rollup row, a constraint) | Unaffected | Work | That click goes to `clicks.dead` with the reason; the rest of its batch and partition are counted | Tested, not benchmarked |
 | Redis and Postgres both down | Only links in a server's memory | Fail | Wait in Kafka | Not measured |
 
 The experiments also caught a real bug before anything shipped: with Kafka 4's default "rebootstrap" behaviour and a producer set never to block, a 10-second Kafka outage lost every click sent during it (20,593 of 60,000). One setting fixed it; [0003](adr/0003-kafka-for-clicks.md#a-trap-the-failure-experiments-caught) has the details.
@@ -150,7 +152,7 @@ Measured with [`bench/run.sh`](../bench/run.sh) on one Apple M1 Pro laptop runni
 
 ## Observability
 
-Every server exposes Prometheus metrics at `/metrics`. Request latency is recorded as histogram buckets rather than per-server percentiles, because percentiles from different servers can't be combined and buckets can: the dashboard's p99 is the whole fleet's. The stack runs Prometheus (`:9090`), which finds every app container through Docker's DNS, and Grafana (`:3000`), which opens on this dashboard:
+Every server exposes Prometheus metrics at `/metrics`, behind a bearer token (`METRICS_TOKEN`) because route-level latency and lag say a lot about a site; the liveness and readiness routes stay open for load balancers. Request latency is recorded as histogram buckets rather than per-server percentiles, because percentiles from different servers can't be combined and buckets can: the dashboard's p99 is the whole fleet's. The stack runs Prometheus (`:9090`), which finds every app container through Docker's DNS, and Grafana (`:3000`), which opens on this dashboard:
 
 ![The Grafana dashboard during the failure experiments](images/dashboard-failures.png)
 
@@ -159,7 +161,7 @@ Every server exposes Prometheus metrics at `/metrics`. Request latency is record
 | `ktor_http_server_requests_seconds` | Rate, status and latency histogram per route. |
 | `snip_lookups_total{layer}` | Where answers come from: `local`, `redis`, `redis_missing`, `database`, `coalesced`. |
 | `clicks_recorded_total`, `clicks_ingested_total`, `clicks_duplicates_total` | Clicks in, clicks counted, redeliveries recognised. |
-| `clicks_dropped_total{reason}` | Clicks lost: `not_accepted` (producer buffer full), `undelivered` (Kafka down over 2 minutes), `unreadable`. Should stay at zero. |
+| `clicks_dropped_total{reason}` | Clicks lost: `not_accepted` (producer buffer full), `undelivered` (Kafka down over 2 minutes), `unreadable`, `poison` (set aside on `clicks.dead`). Should stay at zero. |
 | `kafka_producer_record_send_total`, `kafka_producer_record_error_total` | From Kafka's own client metrics: sends, and send attempts that failed and were retried. |
 | `kafka_consumer_fetch_manager_records_lag_max` | How far behind each consumer is. Grows during a Postgres outage, then drains. |
 | `kafka_consumer_coordinator_rebalance_total` | Partition reassignments: a server joined, left, or died. |

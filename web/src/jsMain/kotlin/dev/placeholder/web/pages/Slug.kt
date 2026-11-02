@@ -11,18 +11,19 @@ import com.varabyte.kobweb.core.Page
 import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.Anchor
 import dev.placeholder.shared.Languages
-import dev.placeholder.shared.Messages
 import dev.placeholder.shared.Paths
 import dev.placeholder.shared.SnipDto
 import dev.placeholder.shared.SnipKind
 import dev.placeholder.web.Api
-import dev.placeholder.web.ApiException
 import dev.placeholder.web.Navigation
 import dev.placeholder.web.components.CopyAction
 import dev.placeholder.web.components.HtmlCode
+import dev.placeholder.web.components.Load
+import dev.placeholder.web.components.LoadedPage
 import dev.placeholder.web.components.Loading
 import dev.placeholder.web.components.Shell
 import dev.placeholder.web.components.StateScreen
+import dev.placeholder.web.components.load
 import dev.placeholder.web.escapeHtml
 import dev.placeholder.web.formatDate
 import dev.placeholder.web.formatLines
@@ -38,78 +39,27 @@ import org.jetbrains.compose.web.dom.Pre
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
-private sealed interface Load {
-    data object Pending : Load
-
-    data object Missing : Load
-
-    data object Expired : Load
-
-    data class Failed(
-        val message: String,
-    ) : Load
-
-    data class Ready(
-        val snip: SnipDto,
-    ) : Load
-}
-
 @Page("{slug}")
 @Composable
 fun SnipPage() {
     val slug = rememberPageContext().route.params["slug"].orEmpty()
     var attempt by remember { mutableIntStateOf(0) }
-    var state by remember(slug) { mutableStateOf<Load>(Load.Pending) }
+    var state by remember(slug) { mutableStateOf<Load<SnipDto>>(Load.Pending) }
 
     LaunchedEffect(slug, attempt) {
         state = Load.Pending
-        state =
-            try {
-                Api.snip(slug)?.let { Load.Ready(it) } ?: Load.Missing
-            } catch (e: ApiException) {
-                if (e.isExpired) Load.Expired else Load.Failed(e.message ?: "Something went wrong.")
-            }
+        state = load { Api.snip(slug) }
     }
 
-    when (val current = state) {
-        Load.Pending -> {
-            Shell { Loading() }
-        }
-
-        Load.Missing -> {
-            MissingScreen("/$slug")
-        }
-
-        Load.Expired -> {
-            Shell(title = "Expired") {
-                StateScreen(
-                    lead = Messages.EXPIRED,
-                    sub = "Whoever made it chose for it to stop working after a while.",
-                ) {
-                    Anchor(Paths.HOME, { classes("act") }) { Text("What is placeholder?") }
-                }
-            }
-        }
-
-        is Load.Failed -> {
-            Shell(title = "Unavailable") {
-                StateScreen(
-                    lead = current.message,
-                    sub = "Your link is safe. This is a problem loading it, not with the link itself.",
-                ) {
-                    Button({
-                        classes("act")
-                        attr("type", "button")
-                        onClick { attempt++ }
-                    }) { Text("Try again") }
-                }
-            }
-        }
-
-        is Load.Ready -> {
-            SnipView(current.snip)
-        }
-    }
+    LoadedPage(
+        state = state,
+        title = null,
+        expiredSub = "Whoever made it chose for it to stop working after a while.",
+        expiredAction = { Anchor(Paths.HOME, { classes("act") }) { Text("What is placeholder?") } },
+        failedSub = "Your link is safe. This is a problem loading it, not with the link itself.",
+        onRetry = { attempt++ },
+        missing = { MissingScreen("/$slug") },
+    ) { snip -> SnipView(snip) }
 }
 
 @Composable

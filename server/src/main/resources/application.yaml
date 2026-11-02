@@ -37,5 +37,10 @@ placeholder:
     replicationFactor: "$KAFKA_REPLICATION_FACTOR:1"
 
   analytics:
-    # Secret for anonymous visitor ids. Set a long random value in production, the same on every instance.
-    visitorKey: "$VISITOR_KEY:local-development-only"
+    # Secret for anonymous visitor ids: a long random value, the same on every instance. Empty uses a development
+    # stand-in, which the server refuses once PUBLIC_BASE_URL is https.
+    visitorKey: "$VISITOR_KEY:"
+
+  metrics:
+    # Prometheus sends this as a bearer token to read /metrics. Empty leaves them open; refused once the site is https.
+    token: "$METRICS_TOKEN:"

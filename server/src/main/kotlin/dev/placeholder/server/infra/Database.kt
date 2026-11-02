@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.flywaydb.core.Flyway
+import org.jetbrains.exposed.v1.core.DatabaseConfig
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.sql.SQLException
@@ -43,7 +44,18 @@ class Database(
             .dataSource(dataSource)
             .load()
             .migrate()
-        exposed = ExposedDatabase.connect(dataSource)
+        exposed =
+            ExposedDatabase.connect(
+                dataSource,
+                databaseConfig =
+                    DatabaseConfig {
+                        // A transaction that fails on an SQLException is run again, up to this many times in all.
+                        // The click ingest counts on it: two consumers racing on the same click ids resolve on the
+                        // retry, where the loser finds them already counted. Stated here so a change in Exposed's
+                        // default can't quietly take that away.
+                        defaultMaxAttempts = TRANSACTION_ATTEMPTS
+                    },
+            )
     }
 
     /** Runs blocking JDBC work on the IO dispatcher so it never holds up the event loop. */
@@ -62,4 +74,8 @@ class Database(
         }
 
     override fun close() = dataSource.close()
+
+    private companion object {
+        const val TRANSACTION_ATTEMPTS = 3
+    }
 }

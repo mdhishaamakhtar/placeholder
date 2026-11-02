@@ -75,6 +75,8 @@ services:
       REDIS_URL: redis://redis:6379
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       VISITOR_KEY: "${VISITOR_KEY:-local-stack-only}"
+      # Prometheus presents this to read /metrics (docker/prometheus.yml carries the same value).
+      METRICS_TOKEN: local-stack-only
       PUBLIC_BASE_URL: http://localhost:8080
       TRUST_PROXY_HEADERS: "true"
       # Raised by bench/run.sh so the create benchmark measures the server, not the rate limiter.

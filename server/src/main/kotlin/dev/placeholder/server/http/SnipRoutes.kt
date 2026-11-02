@@ -1,6 +1,5 @@
 package dev.placeholder.server.http
 
-import dev.placeholder.server.PayloadTooLargeException
 import dev.placeholder.server.analytics.Clicks
 import dev.placeholder.server.infra.RateLimiter
 import dev.placeholder.server.prettify.Prettifier
@@ -13,13 +12,11 @@ import dev.placeholder.shared.CreateSnipResponse
 import dev.placeholder.shared.Messages
 import dev.placeholder.shared.PrettifyRequest
 import dev.placeholder.shared.PrettifyResponse
-import dev.placeholder.shared.Rules
 import dev.placeholder.shared.UpdateSnipRequest
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.plugins.origin
-import io.ktor.server.request.contentLength
 import io.ktor.server.request.receive
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
@@ -40,7 +37,6 @@ fun Route.snipRoutes(
 ) {
     route("/api") {
         post("/snips") {
-            call.rejectOversizedBody()
             // Making links needs an account: every new link has an owner who can find, edit, and expire it.
             val user = call.requireUser()
             limiter.check("create", call.clientId())
@@ -73,7 +69,6 @@ fun Route.snipRoutes(
         }
 
         put("/snips/{slug}") {
-            call.rejectOversizedBody()
             val user = call.requireUser()
             val snip = snips.update(call.parameters["slug"].orEmpty(), call.receive<UpdateSnipRequest>(), user)
             call.respond(snip.toDto(user.id))
@@ -97,7 +92,6 @@ fun Route.snipRoutes(
         }
 
         post("/prettify") {
-            call.rejectOversizedBody()
             call.requireUser()
             limiter.check("prettify", call.clientId())
             val request = call.receive<PrettifyRequest>()
@@ -146,11 +140,3 @@ private suspend fun ApplicationCall.notModified(snip: Snip): Boolean {
 }
 
 private fun ApplicationCall.clientId(): String = request.origin.remoteHost
-
-private fun ApplicationCall.rejectOversizedBody() {
-    val length = request.contentLength() ?: return
-    // JSON escaping can roughly double the size of the raw content, so allow headroom over the content limit.
-    if (length > Rules.MAX_CONTENT_BYTES * 2L + 4096) {
-        throw PayloadTooLargeException("That's too big. The limit is ${Rules.MAX_CONTENT_BYTES / 1024} KB.")
-    }
-}

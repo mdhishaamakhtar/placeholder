@@ -7,6 +7,10 @@ global:
 scrape_configs:
   - job_name: placeholder
     metrics_path: /metrics
+    # The app's METRICS_TOKEN (compose.yaml). In production, read it from a file instead: credentials_file.
+    authorization:
+      type: Bearer
+      credentials: local-stack-only
     dns_sd_configs:
       - names: [app]
         type: A

@@ -13,19 +13,19 @@ import com.varabyte.kobweb.navigation.Anchor
 import com.varabyte.kobweb.navigation.UpdateHistoryMode
 import dev.placeholder.shared.Languages
 import dev.placeholder.shared.LinkStats
-import dev.placeholder.shared.Messages
 import dev.placeholder.shared.Paths
 import dev.placeholder.shared.SnipDto
 import dev.placeholder.shared.SnipKind
 import dev.placeholder.web.Api
-import dev.placeholder.web.ApiException
 import dev.placeholder.web.Navigation
 import dev.placeholder.web.Session
 import dev.placeholder.web.components.CopyAction
-import dev.placeholder.web.components.Loading
+import dev.placeholder.web.components.Load
+import dev.placeholder.web.components.LoadedPage
 import dev.placeholder.web.components.Shell
 import dev.placeholder.web.components.StateScreen
 import dev.placeholder.web.components.VisitsChart
+import dev.placeholder.web.components.load
 import dev.placeholder.web.formatDate
 import dev.placeholder.web.formatLines
 import dev.placeholder.web.formatPeople
@@ -42,22 +42,11 @@ import org.jetbrains.compose.web.dom.P
 import org.jetbrains.compose.web.dom.Span
 import org.jetbrains.compose.web.dom.Text
 
-private sealed interface Load {
-    data object Pending : Load
-
-    data object Missing : Load
-
-    data object Expired : Load
-
-    data class Failed(
-        val message: String,
-    ) : Load
-
-    data class Ready(
-        val snip: SnipDto,
-        val stats: LinkStats,
-    ) : Load
-}
+/** A link of yours, with its visits. */
+private class Owned(
+    val snip: SnipDto,
+    val stats: LinkStats,
+)
 
 /** How often a link of yours was opened, and by how many people: `/stats/{slug}`. */
 @Page("{slug}")
@@ -66,7 +55,7 @@ fun StatsPage() {
     val ctx = rememberPageContext()
     val slug = ctx.route.params["slug"].orEmpty()
     var attempt by remember { mutableIntStateOf(0) }
-    var state by remember(slug) { mutableStateOf<Load>(Load.Pending) }
+    var state by remember(slug) { mutableStateOf<Load<Owned>>(Load.Pending) }
     val me = Session.me
 
     LaunchedEffect(Session.ready, me, slug, attempt) {
@@ -77,26 +66,26 @@ fun StatsPage() {
         }
         state = Load.Pending
         state =
-            try {
+            load {
                 coroutineScope {
                     val snip = async { Api.snip(slug) }
                     val stats = async { Api.stats(slug) }
                     val found = snip.await()
                     val counts = stats.await()
                     // Someone else's link answers like a missing one: visits are only for the person who made it.
-                    if (found == null || counts == null || !found.owned) Load.Missing else Load.Ready(found, counts)
+                    if (found == null || counts == null || !found.owned) null else Owned(found, counts)
                 }
-            } catch (e: ApiException) {
-                if (e.isExpired) Load.Expired else Load.Failed(e.message ?: "Something went wrong.")
             }
     }
 
-    when (val current = state) {
-        Load.Pending -> {
-            Shell(title = "Visits") { Loading() }
-        }
-
-        Load.Missing -> {
+    LoadedPage(
+        state = state,
+        title = "Visits",
+        expiredSub = "Its visits went with it.",
+        expiredAction = { Anchor(Paths.LINKS, { classes("act") }) { Text("Your links") } },
+        failedSub = "Your link and its visits are safe; they just didn't load.",
+        onRetry = { attempt++ },
+        missing = {
             Shell(title = "Not found") {
                 StateScreen(
                     lead = "None of your links lives at /$slug.",
@@ -105,32 +94,8 @@ fun StatsPage() {
                     Anchor(Paths.LINKS, { classes("act") }) { Text("Your links") }
                 }
             }
-        }
-
-        Load.Expired -> {
-            Shell(title = "Expired") {
-                StateScreen(lead = Messages.EXPIRED, sub = "Its visits went with it.") {
-                    Anchor(Paths.LINKS, { classes("act") }) { Text("Your links") }
-                }
-            }
-        }
-
-        is Load.Failed -> {
-            Shell(title = "Unavailable") {
-                StateScreen(lead = current.message, sub = "Your link and its visits are safe; they just didn't load.") {
-                    Button({
-                        classes("act")
-                        attr("type", "button")
-                        onClick { attempt++ }
-                    }) { Text("Try again") }
-                }
-            }
-        }
-
-        is Load.Ready -> {
-            StatsView(current.snip, current.stats)
-        }
-    }
+        },
+    ) { owned -> StatsView(owned.snip, owned.stats) }
 }
 
 @Composable

@@ -35,7 +35,7 @@ class SnipService(
                     lines = Rules.lineCount(body.content),
                     bytes = body.content.encodeToByteArray().size,
                     expiresAt = expiresIn?.let { now + it * 1000 },
-                    ownerId = owner?.id?.toString(),
+                    ownerId = owner?.id,
                 )
             if (cache.insert(snip, now)) return snip
         }

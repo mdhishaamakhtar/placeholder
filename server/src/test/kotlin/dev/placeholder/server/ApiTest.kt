@@ -30,12 +30,14 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import io.ktor.utils.io.ByteReadChannel
 import io.lettuce.core.RedisClient
 import org.jsoup.Jsoup
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlin.uuid.Uuid
 
 class ApiTest {
     private fun withApp(
@@ -44,7 +46,7 @@ class ApiTest {
         block: suspend ApplicationTestBuilder.(HttpClient) -> Unit,
     ) = testApplication {
         val components =
-            AppComponents(config, Database(config), if (useRedis) Redis(config.redisUrl!!) else null, TestEnv.kafka())
+            AppComponents(config, if (useRedis) Redis(config.redisUrl!!) else null, TestEnv.kafka())
         // Use an empty config so the test doesn't also boot the module listed in application.yaml.
         environment { this.config = MapApplicationConfig() }
         application { configure(components) }
@@ -57,7 +59,7 @@ class ApiTest {
         // Making links needs an account, so every test starts signed in.
         client.post("/api/account/signup") {
             contentType(ContentType.Application.Json)
-            setBody(Credentials("api-${UUID.randomUUID()}@example.com", "correct horse battery"))
+            setBody(Credentials("api-${Uuid.random()}@example.com", "correct horse battery"))
         }
         try {
             block(client)
@@ -121,6 +123,49 @@ class ApiTest {
             val tooBig = "x".repeat(Rules.MAX_CONTENT_BYTES + 1)
             assertEquals(HttpStatusCode.BadRequest, client.create(tooBig).status)
         }
+
+    @Test
+    fun aHugeBodyIsRefusedWhetherOrNotItAnnouncesItsLength() =
+        withApp { client ->
+            // Well past the content limit even after JSON escaping is allowed for.
+            val body = """{"content":"${"x".repeat(Rules.MAX_CONTENT_BYTES * 3)}"}"""
+            val announced =
+                client.post("/api/snips") {
+                    contentType(ContentType.Application.Json)
+                    setBody(body)
+                }
+            assertEquals(HttpStatusCode.PayloadTooLarge, announced.status)
+
+            // A chunked body carries no Content-Length, so the size is only known as it streams in.
+            val chunked =
+                client.post("/api/snips") {
+                    contentType(ContentType.Application.Json)
+                    setBody(ByteReadChannel(body))
+                }
+            assertEquals(HttpStatusCode.PayloadTooLarge, chunked.status)
+        }
+
+    @Test
+    fun pagesCarryAContentSecurityPolicy() =
+        withApp { client ->
+            val policy = client.get("/").headers["Content-Security-Policy"]
+            assertNotNull(policy)
+            assertTrue("default-src 'self'" in policy, policy)
+            assertTrue("frame-ancestors 'none'" in policy, policy)
+            assertTrue("object-src 'none'" in policy, policy)
+        }
+
+    @Test
+    fun strictTransportSecurityOnlyOverHttps() {
+        withApp { client ->
+            assertEquals(null, client.get("/").headers["Strict-Transport-Security"])
+        }
+        withApp(TestEnv.config(publicBaseUrl = "https://test.local", metricsToken = "scrape")) { client ->
+            val hsts = client.get("/").headers["Strict-Transport-Security"]
+            assertNotNull(hsts)
+            assertTrue(hsts.startsWith("max-age="), hsts)
+        }
+    }
 
     @Test
     fun unknownSlugIs404() =
@@ -239,7 +284,7 @@ class ApiTest {
     fun creatingNeedsAnAccount() =
         testApplication {
             val config = TestEnv.config()
-            val components = AppComponents(config, Database(config), null, TestEnv.kafka())
+            val components = AppComponents(config, null, TestEnv.kafka())
             environment { this.config = MapApplicationConfig() }
             application { configure(components) }
             val anonymous = createClient { install(ContentNegotiation) { json() } }

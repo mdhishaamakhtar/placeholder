@@ -12,3 +12,4 @@ Each record is one decision: the problem, what was chosen, what was given up, an
 | [0006](0006-request-coalescing.md) | Coalesce concurrent cache misses |
 | [0007](0007-no-bloom-filter.md) | No Bloom filter for missing slugs, yet |
 | [0008](0008-one-deployable.md) | One deployable, not services |
+| [0009](0009-dead-letter-topic.md) | A dead-letter topic for clicks that can't be counted |

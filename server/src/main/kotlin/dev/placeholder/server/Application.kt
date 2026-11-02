@@ -38,14 +38,18 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.net.URI
 import kotlin.time.Duration.Companion.seconds
 
-/** Everything the app needs, wired by hand. Small enough that a DI framework would only add indirection. */
+/**
+ * Everything the app needs, wired by hand. Small enough that a DI framework would only add indirection.
+ * Redis is passed in because it's optional; Kafka because tests point it at an unreachable address.
+ */
 class AppComponents(
     val config: AppConfig,
-    val database: Database,
     val redis: Redis?,
     kafka: Kafka,
     val metrics: Metrics = Metrics(),
 ) : AutoCloseable {
+    val database = Database(config, metrics.registry)
+
     /** Work that outlives the request that started it, such as a cache lookup other requests are waiting on. */
     private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val bus = InvalidationBus(redis)
@@ -65,27 +69,20 @@ class AppComponents(
         redis?.close()
         database.close()
     }
-
-    companion object {
-        fun create(config: AppConfig): AppComponents {
-            val metrics = Metrics()
-            return AppComponents(
-                config = config,
-                database = Database(config, metrics.registry),
-                redis = config.redisUrl?.let(::Redis),
-                kafka = Kafka(config.kafkaBootstrapServers, config.kafkaReplicationFactor),
-                metrics = metrics,
-            )
-        }
-    }
 }
 
 /** Entry point named in application.yaml; Ktor's EngineMain loads the file and calls this. */
 suspend fun Application.module() {
     // Preview cards are drawn with Java2D; there's no display on a server.
     System.setProperty("java.awt.headless", "true")
-    val components = AppComponents.create(AppConfig.from(environment.config))
-    log.info("Serving web app from {}", components.config.webRoot?.absolutePath ?: "nowhere (API only)")
+    val config = AppConfig.from(environment.config)
+    val components =
+        AppComponents(
+            config = config,
+            redis = config.redisUrl?.let(::Redis),
+            kafka = Kafka(config.kafkaBootstrapServers, config.kafkaReplicationFactor),
+        )
+    log.info("Serving web app from {}", config.webRoot?.absolutePath ?: "nowhere (API only)")
     configure(components)
     components.maintenance.start(this)
     val clicks = components.clicks.start(this)
@@ -103,24 +100,25 @@ private val SHUTDOWN_GRACE = 5.seconds
 private val KAFKA_GRACE = 10.seconds
 
 fun Application.configure(components: AppComponents) {
-    installPlugins(components.config, components.metrics, components.appShell)
+    val config = components.config
+    installPlugins(config, components.metrics, components.appShell)
     install(SessionAuth) {
         accounts = components.accounts
-        publicBaseUrl = components.config.publicBaseUrl
+        publicBaseUrl = config.publicBaseUrl
     }
     routing {
-        systemRoutes(components.database, components.redis, components.metrics)
+        systemRoutes(components.database, components.redis, components.metrics, config.metricsToken)
         accountRoutes(
             components.accounts,
             components.rateLimiter,
-            components.config.authPerMinute,
-            components.config.secureCookies,
+            config.authPerMinute,
+            secureCookies = config.servedOverHttps,
         )
-        snipRoutes(components.snips, components.clicks, components.rateLimiter, components.config.publicBaseUrl)
+        snipRoutes(components.snips, components.clicks, components.rateLimiter, config.publicBaseUrl)
         webRoutes(
             components.snips,
             components.clicks,
-            components.config.webRoot,
+            config.webRoot,
             components.appShell,
             components.previewCards,
         )

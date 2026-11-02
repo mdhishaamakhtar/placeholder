@@ -12,7 +12,6 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.notExists
 import org.jetbrains.exposed.v1.core.plus
@@ -30,7 +29,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 object ClickEvents : Table("click_events") {
-    val id = javaUUID("id")
+    val id = uuid("id")
     val slug = varchar("slug", 16)
     val at = timestamp("at")
 
@@ -56,8 +55,8 @@ class ClickStore(
      * at-least-once queue count every visit exactly once.
      *
      * If two writers race on the same ids (a redelivery overlapping the original), the loser's insert fails on the
-     * primary key once the winner commits. Exposed retries a failed transaction, and on the retry those ids are
-     * recognised as counted.
+     * primary key once the winner commits. The transaction is retried ([Database] sets how many times), and on the
+     * retry those ids are recognised as counted.
      */
     suspend fun ingest(clicks: List<Click>): Int =
         db.query {

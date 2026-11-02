@@ -32,10 +32,11 @@ jobs:
       - name: Format and lint
         run: ./gradlew spotlessCheck
 
-      # Shared rules on the JVM and in a headless browser, the server suite against real Postgres, Redis and Kafka
-      # (Testcontainers uses the runner's Docker), and a production build of the site.
+      # Shared rules on the JVM and in a headless browser, the editor's state holder in that browser, the server
+      # suite against real Postgres, Redis and Kafka (Testcontainers uses the runner's Docker), and a production
+      # build of the site.
       - name: Test and build
-        run: ./gradlew :shared:jvmTest :shared:jsTest :server:test :server:installDist :web:assembleSite
+        run: ./gradlew :shared:jvmTest :shared:jsTest :web:jsTest :server:test :server:installDist :web:assembleSite
 
       - name: Upload test reports
         if: failure()

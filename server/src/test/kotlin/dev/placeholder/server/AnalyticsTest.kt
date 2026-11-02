@@ -2,6 +2,7 @@ package dev.placeholder.server
 
 import dev.placeholder.server.analytics.Click
 import dev.placeholder.server.analytics.ClickConsumer
+import dev.placeholder.server.analytics.ClickDays
 import dev.placeholder.server.analytics.ClickProducer
 import dev.placeholder.server.analytics.ClickStore
 import dev.placeholder.server.infra.Database
@@ -33,10 +34,10 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import org.jetbrains.exposed.v1.jdbc.insert
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.util.UUID
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,6 +45,7 @@ import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import kotlin.uuid.Uuid
 
 class AnalyticsTest {
     private fun withApp(
@@ -51,7 +53,7 @@ class AnalyticsTest {
         block: suspend ApplicationTestBuilder.(newClient: suspend () -> HttpClient) -> Unit,
     ) = testApplication {
         val config = TestEnv.config()
-        val components = AppComponents(config, Database(config), Redis(config.redisUrl!!), kafka)
+        val components = AppComponents(config, Redis(config.redisUrl!!), kafka)
         environment { this.config = MapApplicationConfig() }
         application {
             configure(components)
@@ -66,7 +68,7 @@ class AnalyticsTest {
             }.also {
                 it.post("/api/account/signup") {
                     contentType(ContentType.Application.Json)
-                    setBody(Credentials("clicks-${UUID.randomUUID()}@example.com", "correct horse battery"))
+                    setBody(Credentials("clicks-${Uuid.random()}@example.com", "correct horse battery"))
                 }
             }
         }
@@ -80,7 +82,7 @@ class AnalyticsTest {
     private suspend fun HttpClient.createLink(): String =
         post("/api/snips") {
             contentType(ContentType.Application.Json)
-            setBody(CreateSnipRequest("https://example.com/${UUID.randomUUID()}"))
+            setBody(CreateSnipRequest("https://example.com/${Uuid.random()}"))
         }.body<CreateSnipResponse>().slug
 
     private suspend fun HttpClient.visit(
@@ -150,9 +152,9 @@ class AnalyticsTest {
             val config = TestEnv.config()
             Database(config).use { db ->
                 val store = ClickStore(db)
-                val slug = "r" + UUID.randomUUID().toString().take(6)
+                val slug = "r" + Uuid.random().toString().take(6)
                 val now = System.currentTimeMillis()
-                val batch = (1..50).map { Click(UUID.randomUUID(), slug, now, "visitor-$it") }
+                val batch = (1..50).map { Click(Uuid.random(), slug, now, "visitor-$it") }
 
                 assertEquals(50, store.ingest(batch))
                 // The same batch again (the consumer died between commit and acknowledgement), plus a repeat within it.
@@ -166,15 +168,15 @@ class AnalyticsTest {
     fun aBatchADeadConsumerNeverCommittedIsCountedByAnother() =
         runBlocking {
             val kafka = TestEnv.kafka()
-            val topic = "clicks-${UUID.randomUUID()}"
+            val topic = "clicks-${Uuid.random()}"
             kafka.ensureTopic(topic, partitions = 3)
             Database(TestEnv.config()).use { db ->
                 val store = ClickStore(db)
-                val slug = "a" + UUID.randomUUID().toString().take(6)
+                val slug = "a" + Uuid.random().toString().take(6)
                 ClickProducer(kafka, topic, SimpleMeterRegistry()).use { producer ->
                     producer.awaitPartitions()
                     (1..3).forEach {
-                        producer.record(Click(UUID.randomUUID(), slug, System.currentTimeMillis(), "visitor-$it"))
+                        producer.record(Click(Uuid.random(), slug, System.currentTimeMillis(), "visitor-$it"))
                     }
                 }
 
@@ -185,10 +187,63 @@ class AnalyticsTest {
                 }
 
                 coroutineScope {
-                    val survivor = ClickConsumer(kafka, topic, store, SimpleMeterRegistry()).start(this)
+                    val survivor = ClickConsumer(kafka, topic, "$topic.dead", store, SimpleMeterRegistry()).start(this)
                     val today = LocalDate.now(ZoneOffset.UTC)
                     eventually({ store.stats(slug, today).visits }) { it == 3L }
                     survivor.cancelAndJoin()
+                }
+            }
+        }
+
+    @Test
+    fun aPoisonedRollupRowIsDeadLetteredAndThePartitionMovesOn() =
+        runBlocking {
+            val kafka = TestEnv.kafka()
+            val topic = "clicks-${Uuid.random()}"
+            val deadLetters = "$topic.dead"
+            // One partition, so the healthy link's clicks queue behind the poisoned link's and can only be
+            // counted once the consumer has got past them.
+            kafka.ensureTopic(topic, partitions = 1)
+            kafka.ensureTopic(deadLetters, partitions = 1)
+            Database(TestEnv.config()).use { db ->
+                val store = ClickStore(db)
+                val poisoned = "p" + Uuid.random().toString().take(6)
+                val healthy = "h" + Uuid.random().toString().take(6)
+                val today = LocalDate.now(ZoneOffset.UTC)
+                // A rollup row whose sketch can't be read: every batch that touches it fails, and no retry helps.
+                db.query {
+                    ClickDays.insert {
+                        it[slug] = poisoned
+                        it[day] = today
+                        it[visits] = 0
+                        it[visitors] = byteArrayOf(1, 2, 3)
+                    }
+                }
+
+                ClickProducer(kafka, topic, SimpleMeterRegistry()).use { producer ->
+                    producer.awaitPartitions()
+                    repeat(3) { producer.record(Click(Uuid.random(), poisoned, System.currentTimeMillis(), "v$it")) }
+                    repeat(3) { producer.record(Click(Uuid.random(), healthy, System.currentTimeMillis(), "v$it")) }
+                }
+
+                val registry = SimpleMeterRegistry()
+                coroutineScope {
+                    val consumer = ClickConsumer(kafka, topic, deadLetters, store, registry).start(this)
+                    eventually({ store.stats(healthy, today).visits }) { it == 3L }
+                    consumer.cancelAndJoin()
+                }
+                assertEquals(3.0, registry.counter("clicks.dropped", "reason", "poison").count())
+
+                kafka.consumer("dead-letter-reader-${Uuid.random()}", maxRecords = 100).use { reader ->
+                    reader.subscribe(listOf(deadLetters))
+                    val dead = mutableListOf<Click>()
+                    eventually({
+                        reader.poll(Duration.ofMillis(200)).forEach { dead += Click.fromJson(it.value())!! }
+                        dead.size
+                    }) {
+                        it == 3
+                    }
+                    assertEquals(setOf(poisoned), dead.map { it.slug }.toSet())
                 }
             }
         }
@@ -198,13 +253,13 @@ class AnalyticsTest {
         runBlocking {
             Database(TestEnv.config()).use { db ->
                 val store = ClickStore(db)
-                val slug = "u" + UUID.randomUUID().toString().take(6)
+                val slug = "u" + Uuid.random().toString().take(6)
                 val today = LocalDate.now(ZoneOffset.UTC)
                 val dayMillis = 86_400_000L
                 val now = System.currentTimeMillis()
                 // 20,000 visits by 8,000 people over two days; 2,000 of them come back on the second day.
-                val yesterday = (0 until 5_000).map { Click(UUID.randomUUID(), slug, now - dayMillis, "v$it") }
-                val todays = (3_000 until 8_000).flatMap { v -> List(3) { Click(UUID.randomUUID(), slug, now, "v$v") } }
+                val yesterday = (0 until 5_000).map { Click(Uuid.random(), slug, now - dayMillis, "v$it") }
+                val todays = (3_000 until 8_000).flatMap { v -> List(3) { Click(Uuid.random(), slug, now, "v$v") } }
                 (yesterday + todays).chunked(1_000).forEach { store.ingest(it) }
 
                 val stats = store.stats(slug, today)

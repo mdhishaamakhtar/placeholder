@@ -23,12 +23,13 @@ class Kafka(
     private val replicationFactor: Short,
 ) {
     /**
-     * A producer that never blocks its caller. Sends are appended to an in-memory buffer and shipped in compressed
-     * batches by the client's own thread; if the buffer is full or the topic's partitions aren't known, the send
-     * fails at once (through its callback) instead of waiting. Idempotence (on by default) means the client's own
-     * retries can't write a message twice.
+     * A producer that, by default, never blocks its caller. Sends are appended to an in-memory buffer and shipped
+     * in compressed batches by the client's own thread; if the buffer is full or the topic's partitions aren't
+     * known, the send fails at once (through its callback) instead of waiting. A caller that would rather wait
+     * than fail, such as the consumer setting a click aside, passes how long with [maxBlock]. Idempotence (on by
+     * default) means the client's own retries can't write a message twice.
      */
-    fun producer(): KafkaProducer<String, String> =
+    fun producer(maxBlock: Duration = Duration.ZERO): KafkaProducer<String, String> =
         KafkaProducer(
             mapOf(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
@@ -36,7 +37,7 @@ class Kafka(
                 ProducerConfig.LINGER_MS_CONFIG to 20,
                 ProducerConfig.BATCH_SIZE_CONFIG to 64 * 1024,
                 ProducerConfig.COMPRESSION_TYPE_CONFIG to "lz4",
-                ProducerConfig.MAX_BLOCK_MS_CONFIG to 0,
+                ProducerConfig.MAX_BLOCK_MS_CONFIG to maxBlock.toMillis(),
                 // How long a message may wait for Kafka to come back before it's given up on: the outage it rides out.
                 ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG to Duration.ofMinutes(2).toMillis().toInt(),
                 // Never forget the topic's partitions: a producer that never blocks can't send without them. Kafka 4's

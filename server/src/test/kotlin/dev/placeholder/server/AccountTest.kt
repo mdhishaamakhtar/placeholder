@@ -31,17 +31,17 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.uuid.Uuid
 
 class AccountTest {
     private fun withApp(block: suspend ApplicationTestBuilder.(newClient: () -> HttpClient) -> Unit) =
         testApplication {
             val config = TestEnv.config()
-            val components = AppComponents(config, Database(config), Redis(config.redisUrl!!), TestEnv.kafka())
+            val components = AppComponents(config, Redis(config.redisUrl!!), TestEnv.kafka())
             environment { this.config = MapApplicationConfig() }
             application { configure(components) }
             val newClient = {
@@ -57,7 +57,7 @@ class AccountTest {
             }
         }
 
-    private fun email() = "person-${UUID.randomUUID()}@example.com"
+    private fun email() = "person-${Uuid.random()}@example.com"
 
     private suspend fun HttpClient.signUp(
         email: String,
@@ -173,7 +173,7 @@ class AccountTest {
             val owned = owner.create("val x = 1")
             // Links made before accounts existed have no owner; nobody may edit those.
             val config = TestEnv.config()
-            val legacy = AppComponents(config, Database(config), null, TestEnv.kafka())
+            val legacy = AppComponents(config, null, TestEnv.kafka())
             val anonymous = runBlocking { legacy.snips.create(CreateSnipRequest("val y = 1", "kotlin"), null) }
             legacy.close()
 
@@ -202,7 +202,7 @@ class AccountTest {
     @Test
     fun expiredLinksAreGone() {
         val config = TestEnv.config()
-        val components = AppComponents(config, Database(config), Redis(config.redisUrl!!), TestEnv.kafka())
+        val components = AppComponents(config, Redis(config.redisUrl!!), TestEnv.kafka())
         val twoHoursAgo = System.currentTimeMillis() - 2 * 60 * 60 * 1000
         val snip =
             runBlocking {
@@ -221,8 +221,8 @@ class AccountTest {
     fun anEditOnOneInstanceReachesTheOthers() =
         runBlocking {
             val config = TestEnv.config()
-            val a = AppComponents(config, Database(config), Redis(config.redisUrl!!), TestEnv.kafka())
-            val b = AppComponents(config, Database(config), Redis(config.redisUrl), TestEnv.kafka())
+            val a = AppComponents(config, Redis(config.redisUrl!!), TestEnv.kafka())
+            val b = AppComponents(config, Redis(config.redisUrl), TestEnv.kafka())
             try {
                 val user = a.accounts.signUp(Credentials(email(), "correct horse battery")).user
                 val snip = a.snips.create(CreateSnipRequest("v1", "kotlin"), user)

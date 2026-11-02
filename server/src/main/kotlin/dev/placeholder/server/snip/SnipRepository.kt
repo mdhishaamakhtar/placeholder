@@ -10,7 +10,6 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.javatime.timestamp
@@ -19,7 +18,7 @@ import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import java.time.Instant
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 object Snips : Table("snips") {
     val slug = varchar("slug", 16)
@@ -29,7 +28,7 @@ object Snips : Table("snips") {
     val lines = integer("lines")
     val bytes = integer("bytes")
     val createdAt = timestamp("created_at")
-    val ownerId = javaUUID("owner_id").references(Users.id).nullable()
+    val ownerId = uuid("owner_id").references(Users.id).nullable()
     val expiresAt = timestamp("expires_at").nullable()
     val updatedAt = timestamp("updated_at").nullable()
     val version = integer("version")
@@ -67,7 +66,7 @@ class SnipRepository(
                     it[lines] = snip.lines
                     it[bytes] = snip.bytes
                     it[createdAt] = Instant.ofEpochMilli(snip.createdAt)
-                    it[ownerId] = snip.ownerId?.let(UUID::fromString)
+                    it[ownerId] = snip.ownerId
                     it[expiresAt] = snip.expiresAt?.let(Instant::ofEpochMilli)
                     it[version] = snip.version
                 }.insertedCount == 1
@@ -86,7 +85,7 @@ class SnipRepository(
     /** Replaces the content of a snip the owner holds. Returns null if it doesn't exist or isn't theirs. */
     suspend fun update(
         slug: String,
-        owner: UUID,
+        owner: Uuid,
         change: (Snip) -> Snip,
         now: Instant,
     ): Snip? =
@@ -113,7 +112,7 @@ class SnipRepository(
         }
 
     suspend fun listByOwner(
-        owner: UUID,
+        owner: Uuid,
         before: Cursor?,
         limit: Int,
     ): List<SnipSummary> =
@@ -168,7 +167,7 @@ class SnipRepository(
             bytes = this[Snips.bytes],
             updatedAt = this[Snips.updatedAt]?.toEpochMilli(),
             expiresAt = this[Snips.expiresAt]?.toEpochMilli(),
-            ownerId = this[Snips.ownerId]?.toString(),
+            ownerId = this[Snips.ownerId],
             version = this[Snips.version],
         )
 

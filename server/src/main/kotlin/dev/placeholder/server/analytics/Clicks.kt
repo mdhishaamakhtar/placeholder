@@ -15,9 +15,9 @@ import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.Uuid
 
 /**
  * Visit counting, end to end. A visit is recorded on the request ([record]), carried through Kafka
@@ -31,7 +31,7 @@ class Clicks(
 ) : AutoCloseable {
     private val log = LoggerFactory.getLogger(Clicks::class.java)
     private val producer = ClickProducer(kafka, TOPIC, registry)
-    private val consumer = ClickConsumer(kafka, TOPIC, store, registry)
+    private val consumer = ClickConsumer(kafka, TOPIC, DEAD_LETTER_TOPIC, store, registry)
     private val ready = CompletableDeferred<Unit>()
 
     /** Counts a visit to [slug], unless it came from a bot. Returns at once; the count lands a moment later. */
@@ -42,7 +42,7 @@ class Clicks(
         now: Long = System.currentTimeMillis(),
     ) {
         if (userAgent == null || Bots.isBot(userAgent)) return
-        producer.record(Click(UUID.randomUUID(), slug, now, visitors.id(ip, userAgent)))
+        producer.record(Click(Uuid.random(), slug, now, visitors.id(ip, userAgent)))
     }
 
     /**
@@ -52,7 +52,7 @@ class Clicks(
     fun start(scope: CoroutineScope): Job =
         scope.launch {
             launch {
-                ensureTopic()
+                ensureTopics()
                 producer.awaitPartitions()
                 ready.complete(Unit)
             }
@@ -66,11 +66,12 @@ class Clicks(
      */
     suspend fun awaitReady(timeout: Duration): Boolean = withTimeoutOrNull(timeout) { ready.await() } != null
 
-    private suspend fun ensureTopic() {
+    private suspend fun ensureTopics() {
         var backoff = MIN_BACKOFF
         while (true) {
             try {
                 kafka.ensureTopic(TOPIC, PARTITIONS)
+                kafka.ensureTopic(DEAD_LETTER_TOPIC, DEAD_LETTER_PARTITIONS)
                 return
             } catch (e: KafkaException) {
                 log.warn("Kafka unavailable, retrying in {}: {}", backoff, e.message)
@@ -98,6 +99,10 @@ class Clicks(
 
         /** Enough to spread across a dozen consumers; partitions can be added later, but not removed. */
         const val PARTITIONS = 12
+
+        /** Clicks that couldn't be counted, kept for someone to look at. Should stay empty. */
+        const val DEAD_LETTER_TOPIC = "clicks.dead"
+        const val DEAD_LETTER_PARTITIONS = 1
         val MIN_BACKOFF = 1.seconds
         val MAX_BACKOFF = 30.seconds
     }

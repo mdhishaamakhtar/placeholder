@@ -59,6 +59,9 @@ class AccountService(
         if (password.length > Rules.MAX_PASSWORD) throw InvalidInputException("That password is too long.")
 
         val hash = hash(password)
+        // This does say whether an address has an account, which sign-in takes care never to. The alternative,
+        // answering "check your inbox" either way, needs email delivery, and this app has none; so sign-up is
+        // rate-limited per client instead, and the trade-off is made knowingly.
         val user =
             repository.createUser(email, hash, now)
                 ?: throw ConflictException("There's already an account for $email. Sign in instead.")

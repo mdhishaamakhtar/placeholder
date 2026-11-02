@@ -1,14 +1,9 @@
 package dev.placeholder.server.analytics
 
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.descriptors.PrimitiveKind
-import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
-import kotlinx.serialization.encoding.Decoder
-import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 /**
  * One visit to a short link, from the request that saw it to the daily rollup. [id] is minted where the visit
@@ -17,7 +12,7 @@ import java.util.UUID
  */
 @Serializable
 data class Click(
-    @Serializable(with = UuidSerializer::class) val id: UUID,
+    val id: Uuid,
     val slug: String,
     val at: Long,
     val visitor: String,
@@ -37,15 +32,4 @@ data class Click(
                 null
             }
     }
-}
-
-private object UuidSerializer : KSerializer<UUID> {
-    override val descriptor = PrimitiveSerialDescriptor("java.util.UUID", PrimitiveKind.STRING)
-
-    override fun serialize(
-        encoder: Encoder,
-        value: UUID,
-    ) = encoder.encodeString(value.toString())
-
-    override fun deserialize(decoder: Decoder): UUID = UUID.fromString(decoder.decodeString())
 }

@@ -46,6 +46,9 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(npm("highlight.js", libs.versions.highlightjs.get()))
         }
+        jsTest.dependencies {
+            implementation(kotlin("test"))
+        }
     }
 }
 

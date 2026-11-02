@@ -18,11 +18,6 @@ class PrettifyException(
     message: String,
 ) : AppException(message)
 
-/** The request body is larger than anything we'd accept. → 413 */
-class PayloadTooLargeException(
-    message: String,
-) : AppException(message)
-
 /** Signing in is required, or the credentials didn't match. → 401 */
 class UnauthorizedException(
     message: String,

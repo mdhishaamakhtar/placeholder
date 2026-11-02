@@ -5,7 +5,6 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
-import org.jetbrains.exposed.v1.core.java.javaUUID
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.javatime.timestamp
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -13,10 +12,10 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import java.time.Instant
-import java.util.UUID
+import kotlin.uuid.Uuid
 
 object Users : Table("users") {
-    val id = javaUUID("id")
+    val id = uuid("id")
     val email = varchar("email", 254)
     val passwordHash = text("password_hash")
     val createdAt = timestamp("created_at")
@@ -26,7 +25,7 @@ object Users : Table("users") {
 
 object Sessions : Table("sessions") {
     val tokenHash = varchar("token_hash", 64)
-    val userId = javaUUID("user_id").references(Users.id)
+    val userId = uuid("user_id").references(Users.id)
     val createdAt = timestamp("created_at")
     val expiresAt = timestamp("expires_at")
 
@@ -34,7 +33,7 @@ object Sessions : Table("sessions") {
 }
 
 data class User(
-    val id: UUID,
+    val id: Uuid,
     val email: String,
 )
 
@@ -53,7 +52,7 @@ class AccountRepository(
         now: Instant,
     ): User? =
         db.query {
-            val id = UUID.randomUUID()
+            val id = Uuid.random()
             val inserted =
                 Users
                     .insertIgnore {
@@ -74,7 +73,7 @@ class AccountRepository(
 
     suspend fun createSession(
         tokenHash: String,
-        userId: UUID,
+        userId: Uuid,
         now: Instant,
         expiresAt: Instant,
     ) {

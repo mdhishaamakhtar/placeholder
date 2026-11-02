@@ -22,22 +22,26 @@ object TestEnv {
 
     const val BASE_URL = "http://test.local"
 
-    fun config(createsPerMinute: Long = 1000) =
-        AppConfig(
-            publicBaseUrl = BASE_URL,
-            databaseUrl = postgres.jdbcUrl,
-            databaseUser = postgres.username,
-            databasePassword = postgres.password,
-            databasePoolSize = 4,
-            redisUrl = redisUrl,
-            webRoot = webRoot,
-            createsPerMinute = createsPerMinute,
-            trustProxyHeaders = false,
-            authPerMinute = 10_000,
-            kafkaBootstrapServers = kafka.bootstrapServers,
-            kafkaReplicationFactor = 1,
-            visitorKey = "test-visitor-key",
-        )
+    fun config(
+        createsPerMinute: Long = 1000,
+        publicBaseUrl: String = BASE_URL,
+        metricsToken: String? = null,
+    ) = AppConfig(
+        publicBaseUrl = publicBaseUrl,
+        databaseUrl = postgres.jdbcUrl,
+        databaseUser = postgres.username,
+        databasePassword = postgres.password,
+        databasePoolSize = 4,
+        redisUrl = redisUrl,
+        webRoot = webRoot,
+        createsPerMinute = createsPerMinute,
+        trustProxyHeaders = false,
+        authPerMinute = 10_000,
+        kafkaBootstrapServers = kafka.bootstrapServers,
+        kafkaReplicationFactor = 1,
+        visitorKey = "test-visitor-key",
+        metricsToken = metricsToken,
+    )
 
     private val redisUrl: String get() = "redis://${redis.host}:${redis.getMappedPort(6379)}"
 

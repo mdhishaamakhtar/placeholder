@@ -22,11 +22,28 @@ data class AppConfig(
     val kafkaReplicationFactor: Short,
     /** Key for the HMAC that turns an IP and user agent into an anonymous visitor id. Shared by every instance. */
     val visitorKey: String,
+    /** Bearer token Prometheus must present to read /metrics. Null leaves them open, which only a laptop should. */
+    val metricsToken: String?,
 ) {
-    /** Session cookies are marked Secure whenever the site is served over HTTPS. */
-    val secureCookies: Boolean get() = publicBaseUrl.startsWith("https://")
+    /**
+     * An HTTPS address means the site is public: session cookies are marked Secure, HSTS is sent, and the
+     * settings that are only fine on a laptop are refused.
+     */
+    val servedOverHttps: Boolean get() = publicBaseUrl.startsWith("https://")
+
+    init {
+        require(!servedOverHttps || visitorKey != DEV_VISITOR_KEY) {
+            "VISITOR_KEY must be set to a long random value when the site is served over HTTPS"
+        }
+        require(!servedOverHttps || metricsToken != null) {
+            "METRICS_TOKEN must be set when the site is served over HTTPS, or /metrics is open to everyone"
+        }
+    }
 
     companion object {
+        /** Stands in for VISITOR_KEY on a laptop. Visitor ids made with it are only as anonymous as this string. */
+        const val DEV_VISITOR_KEY = "local-development-only"
+
         fun from(config: ApplicationConfig): AppConfig {
             val app = config.config("placeholder")
 
@@ -47,7 +64,8 @@ data class AppConfig(
                 authPerMinute = required("rateLimit.authPerMinute").toLong(),
                 kafkaBootstrapServers = required("kafka.bootstrapServers"),
                 kafkaReplicationFactor = required("kafka.replicationFactor").toShort(),
-                visitorKey = required("analytics.visitorKey"),
+                visitorKey = value("analytics.visitorKey") ?: DEV_VISITOR_KEY,
+                metricsToken = value("metrics.token"),
             )
         }
     }
