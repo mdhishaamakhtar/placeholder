@@ -93,7 +93,7 @@ The first Kafka run lost **20,593 of 60,000 visits** when Kafka was unreachable:
 You need Docker and [oha](https://github.com/hatoo/oha) (`brew install oha`). Stop Gradle's background processes first, so they don't compete for CPU:
 
 ```bash
-./gradlew :server:installDist :web:assembleSite && ./gradlew --stop
+./gradlew --stop
 ```
 
 **Load.** Start the stack with the per-client create limit raised (otherwise the create test measures the rate limiter), then run the script. It needs Prometheus, which is part of the stack, to count Postgres lookups for the viral-link test.

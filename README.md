@@ -134,11 +134,7 @@ CI runs `./gradlew spotlessCheck` first and fails on anything unformatted.
 
 ### Run the whole stack in Docker
 
-Three app servers behind nginx, with Postgres, Redis, Kafka, Prometheus and Grafana, the way it would run in production. Build first, then start:
-
-```bash
-./gradlew :server:installDist :web:assembleSite
-```
+Three app servers behind nginx, with Postgres, Redis, Kafka, Prometheus and Grafana, the way it would run in production. The image compiles the project itself, so the first build takes a few minutes:
 
 ```bash
 docker compose --profile stack up -d --build
@@ -199,7 +195,7 @@ Settings live in [`server/src/main/resources/application.yaml`](./server/src/mai
 
 ## Deployment
 
-The live site at [placeholder.hishaam.dev](https://placeholder.hishaam.dev) runs on Railway as one instance each of the app, Postgres, Redis and Kafka, behind Railway's edge and CDN. CI publishes the image to GHCR from `master` after everything passes. The multi-instance figures in the benchmarks come from the local stack, not the live site.
+The live site at [placeholder.hishaam.dev](https://placeholder.hishaam.dev) runs on Railway as one instance each of the app, Postgres, Redis and Kafka, behind Railway's edge and CDN. Railway builds `docker/Dockerfile` from `master` on every push. The multi-instance figures in the benchmarks come from the local stack, not the live site.
 
 ## Tests
 
