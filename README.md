@@ -197,6 +197,10 @@ Settings live in [`server/src/main/resources/application.yaml`](./server/src/mai
 | `VISITOR_KEY` | empty (a development stand-in) | Secret for anonymous visitor ids: a long random value, the same on every instance. Required once `PUBLIC_BASE_URL` is `https://`. |
 | `METRICS_TOKEN` | empty (metrics open) | Bearer token Prometheus presents to read `/metrics`. Required once `PUBLIC_BASE_URL` is `https://`. |
 
+## Deployment
+
+The live site at [placeholder.hishaam.dev](https://placeholder.hishaam.dev) runs on Railway as one instance each of the app, Postgres, Redis and Kafka, behind Railway's edge and CDN. CI publishes the image to GHCR from `master` after everything passes. The multi-instance figures in the benchmarks come from the local stack, not the live site.
+
 ## Tests
 
 Server tests run against real Postgres and Redis through Testcontainers, so Docker must be running. They cover redirects, storage and reads, validation and size limits (with and without a Content-Length), Prettify, rate limits, running without Redis, 404 and 410 pages (including over gzip), theme rendering, the security headers, meta tags that hostile pastes can't break out of, the metrics token, the settings refused over HTTPS, accounts: sign-up and sign-in, session revocation, the cross-site write check, ownership and edit permissions, expiry, and an edit on one app instance reaching another instance's cache; and click analytics against a real Kafka: visits counted once end to end, bots skipped, redirects still working with Kafka unreachable, a redelivered batch not counted twice, a batch a dead consumer never committed counted by another, a poisoned rollup row dead-lettered without stalling its partition, which failures are retried and which aren't, unique-visitor estimates within 3%, and stats visible only to the owner. The shared rules (link detection, slugs, sign-in redirects) and the editor's state holder are tested in a headless browser, the shared rules on the JVM too.
