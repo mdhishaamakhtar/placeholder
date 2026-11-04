@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.kobweb.application) apply false
+    // Kobweb brings KSP 2.3.11, which uses an API Gradle 11 removes. On the same classpath, the newer one wins.
+    alias(libs.plugins.ksp) apply false
     alias(libs.plugins.ktor) apply false
     alias(libs.plugins.spotless)
 }
