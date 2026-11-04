@@ -26,6 +26,8 @@ object TestEnv {
         createsPerMinute: Long = 1000,
         publicBaseUrl: String = BASE_URL,
         metricsToken: String? = null,
+        trustProxyHeaders: Boolean = false,
+        clientIpHeader: String = "X-Forwarded-For",
     ) = AppConfig(
         publicBaseUrl = publicBaseUrl,
         databaseUrl = postgres.jdbcUrl,
@@ -35,7 +37,8 @@ object TestEnv {
         redisUrl = redisUrl,
         webRoot = webRoot,
         createsPerMinute = createsPerMinute,
-        trustProxyHeaders = false,
+        trustProxyHeaders = trustProxyHeaders,
+        clientIpHeader = clientIpHeader,
         proxyHops = 1,
         authPerMinute = 10_000,
         kafkaBootstrapServers = kafka.bootstrapServers,

@@ -8,6 +8,7 @@ import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.metrics.micrometer.MicrometerMetrics
+import io.ktor.server.plugins.autohead.AutoHeadResponse
 import io.ktor.server.plugins.bodylimit.RequestBodyLimit
 import io.ktor.server.plugins.compression.Compression
 import io.ktor.server.plugins.compression.deflate
@@ -26,6 +27,8 @@ fun Application.installPlugins(
     config: AppConfig,
     metrics: Metrics,
 ) {
+    // HEAD answers like GET without the body: link expanders, uptime checks and `curl -I` use it.
+    install(AutoHeadResponse)
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
     }
@@ -51,6 +54,9 @@ fun Application.installPlugins(
     install(ConditionalHeaders)
     if (config.trustProxyHeaders) {
         install(XForwardedHeaders) {
+            // Only the header our proxies set is believed; any other one a client sends is ignored.
+            forHeaders.clear()
+            forHeaders += config.clientIpHeader
             // Read from the right: the last entry is what our nearest proxy saw. The first is whatever the client sent.
             if (config.proxyHops == 1) useLastProxy() else skipLastProxies(config.proxyHops - 1)
         }

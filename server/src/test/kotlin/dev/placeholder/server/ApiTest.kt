@@ -20,6 +20,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.get
+import io.ktor.client.request.head
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
@@ -217,6 +218,42 @@ class ApiTest {
                 ),
                 statuses,
             )
+        }
+
+    @Test
+    fun aForgedForwardedForDoesntDodgeTheLimit() =
+        withApp(
+            TestEnv.config(createsPerMinute = 2, trustProxyHeaders = true, clientIpHeader = "X-Real-IP"),
+        ) { client ->
+            RedisClient.create(TestEnv.config().redisUrl!!).use {
+                it.connect().use { conn -> conn.sync().del(*conn.sync().keys("rl:create:*").toTypedArray()) }
+            }
+            // The edge says who the client is; a different X-Forwarded-For on every request changes nothing.
+            val statuses =
+                (1..3).map { n ->
+                    client
+                        .post("/api/snips") {
+                            header("X-Real-IP", "203.0.113.7")
+                            header(HttpHeaders.XForwardedFor, "198.51.100.$n")
+                            contentType(ContentType.Application.Json)
+                            setBody(CreateSnipRequest("note $n"))
+                        }.status
+                }
+            assertEquals(
+                listOf(HttpStatusCode.Created, HttpStatusCode.Created, HttpStatusCode.TooManyRequests),
+                statuses,
+            )
+        }
+
+    @Test
+    fun headAnswersLikeGet() =
+        withApp { client ->
+            val created = client.create("https://example.com/head").body<CreateSnipResponse>()
+            val link = client.head("/${created.slug}")
+            assertEquals(HttpStatusCode.Found, link.status)
+            assertEquals("https://example.com/head", link.headers[HttpHeaders.Location])
+            assertEquals(HttpStatusCode.OK, client.head("/").status)
+            assertEquals(HttpStatusCode.OK, client.head("/index.html").status)
         }
 
     @Test

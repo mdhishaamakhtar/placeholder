@@ -18,6 +18,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.get
+import io.ktor.client.request.head
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -110,6 +111,12 @@ class AnalyticsTest {
             val owner = newClient()
             val slug = owner.createLink()
             val visitor = newClient()
+            // HEADs only ask where the link goes, so they aren't visits. Sent first: clicks for one link are counted
+            // in order, so if these were counted, the total below could never be exactly 5.
+            repeat(3) {
+                val head = visitor.head("/$slug") { header(HttpHeaders.UserAgent, BROWSER) }
+                assertEquals(HttpStatusCode.Found, head.status)
+            }
             repeat(3) { assertEquals(HttpStatusCode.Found, visitor.visit(slug, BROWSER).status) }
             repeat(2) { visitor.visit(slug, "Mozilla/5.0 (iPhone) Safari/26.0") }
             // Link previews aren't visits.

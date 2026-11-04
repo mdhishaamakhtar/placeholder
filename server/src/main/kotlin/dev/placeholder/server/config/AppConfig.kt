@@ -15,6 +15,11 @@ data class AppConfig(
     val createsPerMinute: Long,
     val trustProxyHeaders: Boolean,
     /**
+     * The header the proxies put the client's address in. X-Forwarded-For behind nginx; on Railway, X-Real-IP, which
+     * its edge sets itself (it doesn't document X-Forwarded-For at all).
+     */
+    val clientIpHeader: String,
+    /**
      * How many proxies you control sit in front of the app, each adding the address it saw to X-Forwarded-For.
      * The client's address is read that many entries from the end; anything further left came from the client.
      */
@@ -66,6 +71,7 @@ data class AppConfig(
                 webRoot = value("webRoot")?.let(::File)?.takeIf { it.isDirectory },
                 createsPerMinute = required("rateLimit.createsPerMinute").toLong(),
                 trustProxyHeaders = value("trustProxyHeaders").toBoolean(),
+                clientIpHeader = required("clientIpHeader"),
                 proxyHops = required("proxyHops").toInt().also { require(it >= 1) { "proxyHops must be at least 1" } },
                 authPerMinute = required("rateLimit.authPerMinute").toLong(),
                 kafkaBootstrapServers = required("kafka.bootstrapServers"),

@@ -15,6 +15,7 @@ import dev.placeholder.shared.SnipKind
 import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.EntityTagVersion
 import io.ktor.server.http.content.staticFiles
@@ -102,7 +103,11 @@ fun Route.webRoutes(
 
             is Lookup.Found -> {
                 val snip = found.snip
-                clicks.record(snip.slug, call.request.origin.remoteHost, call.request.userAgent())
+                // A HEAD only asks where the link goes (link expanders, uptime checks): nobody opened it. AutoHeadResponse
+                // hands HEADs to GET routes, so the method as sent is on the connection, not the request.
+                if (call.request.local.method != HttpMethod.Head) {
+                    clicks.record(snip.slug, call.request.origin.remoteHost, call.request.userAgent())
+                }
                 if (snip.kind == SnipKind.LINK) {
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.forRedirect(snip))
                     call.respondRedirect(snip.content, permanent = false)
