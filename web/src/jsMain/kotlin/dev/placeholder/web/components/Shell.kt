@@ -83,7 +83,7 @@ private fun NavLink(
     Anchor(href, { if (current == href) attr("aria-current", "page") }) { Text(label) }
 }
 
-/** A text action whose label crossfades to a confirmation, then back. */
+/** A text action whose label crossfades to a confirmation (or to why it couldn't copy), then back. */
 @Composable
 fun CopyAction(
     value: String,
@@ -91,40 +91,45 @@ fun CopyAction(
     done: String = "Copied",
 ) {
     val scope = rememberCoroutineScope()
-    var copied by remember { mutableStateOf(false) }
+    // What the action says after a click, until it goes back to its label: the confirmation, or the failure.
+    var outcome by remember { mutableStateOf<String?>(null) }
     Button({
         classes("act")
         attr("type", "button")
         onClick {
             scope.launch {
-                try {
-                    window.navigator.clipboard
-                        .writeText(value)
-                        .await()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Throwable) {
-                    // The browser refused (no permission, or the page isn't focused): there's nothing to confirm.
-                    return@launch
-                }
-                copied = true
+                outcome =
+                    try {
+                        window.navigator.clipboard
+                            .writeText(value)
+                            .await()
+                        done
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        // The browser refused: no permission, the page isn't focused, or no clipboard at all.
+                        COPY_FAILED
+                    }
                 delay(CONFIRMATION_SHOWN)
-                copied = false
+                outcome = null
             }
         }
     }) {
+        val showing = outcome != null
         Span({
             classes("swap")
-            attr("data-on", copied.toString())
+            attr("data-on", showing.toString())
         }) {
-            Span({ attr("aria-hidden", copied.toString()) }) { Text(label) }
+            Span({ attr("aria-hidden", showing.toString()) }) { Text(label) }
             Span({
-                attr("aria-hidden", (!copied).toString())
+                attr("aria-hidden", (!showing).toString())
                 attr("aria-live", "polite")
-            }) { Text(done) }
+            }) { Text(outcome ?: done) }
         }
     }
 }
 
 /** How long "Copied" stays before the action's label returns: long enough to read, short enough to copy again. */
 private val CONFIRMATION_SHOWN = 1400.milliseconds
+
+private const val COPY_FAILED = "Couldn't copy"

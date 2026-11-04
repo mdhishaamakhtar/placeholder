@@ -153,8 +153,12 @@ object CodeColors {
                 "json" -> "(?!)"
                 else -> "//.*$"
             }
+        // Strings are written "unrolled" (runs of plain characters, then one escape at a time) with possessive
+        // quantifiers, so a long literal is matched in a loop. `(?:\\.|[^"])*` recurses once per character and
+        // overflows the stack on a few thousand.
         return Regex(
-            "(?<comment>$comment)|(?<string>\"(?:\\\\.|[^\"\\\\])*\"|'(?:\\\\.|[^'\\\\])*'|`[^`]*`)" +
+            "(?<comment>$comment)" +
+                "|(?<string>\"[^\"\\\\]*+(?:\\\\.[^\"\\\\]*+)*+\"|'[^'\\\\]*+(?:\\\\.[^'\\\\]*+)*+'|`[^`]*+`)" +
                 "|(?<number>\\b\\d+(?:\\.\\d+)?\\b)|(?<word>\\b[A-Za-z_][A-Za-z0-9_]*\\b)",
         )
     }
@@ -177,8 +181,8 @@ object CodeColors {
 
                     groups["string"] != null -> {
                         // A JSON or YAML-ish key: a string followed by a colon.
-                        val rest = text.substring(m.range.last + 1).trimStart()
-                        if (rest.startsWith(":")) ATTR else STRING
+                        val next = (m.range.last + 1 until text.length).firstOrNull { !text[it].isWhitespace() }
+                        if (next != null && text[next] == ':') ATTR else STRING
                     }
 
                     groups["number"] != null -> {

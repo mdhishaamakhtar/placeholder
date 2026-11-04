@@ -15,6 +15,7 @@ import dev.placeholder.shared.SnipKind
 import io.ktor.http.CacheControl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.EntityTagVersion
 import io.ktor.server.http.content.staticFiles
@@ -88,9 +89,8 @@ fun Route.webRoutes(
     get(Regex(slug)) {
         val path = "/${call.parameters["slug"]}"
         when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
-            // The 404 handler in ErrorHandling.kt serves the app, which shows the "nothing here" screen.
             Lookup.Missing -> {
-                call.respond(HttpStatusCode.NotFound)
+                call.respondNotFound(shell)
             }
 
             Lookup.Expired -> {
@@ -103,7 +103,11 @@ fun Route.webRoutes(
 
             is Lookup.Found -> {
                 val snip = found.snip
-                clicks.record(snip.slug, call.request.origin.remoteHost, call.request.userAgent())
+                // A HEAD only asks where the link goes (link expanders, uptime checks): nobody opened it. AutoHeadResponse
+                // hands HEADs to GET routes, so the method as sent is on the connection, not the request.
+                if (call.request.local.method != HttpMethod.Head) {
+                    clicks.record(snip.slug, call.request.origin.remoteHost, call.request.userAgent())
+                }
                 if (snip.kind == SnipKind.LINK) {
                     call.response.header(HttpHeaders.CacheControl, CachePolicy.forRedirect(snip))
                     call.respondRedirect(snip.content, permanent = false)
@@ -120,7 +124,7 @@ fun Route.webRoutes(
         shell.respond(call, HttpStatusCode.OK, PageMeta.page("Visits", path, indexable = false))
     }
 
-    // The app's own pages. Any other path falls through to the 404 handler, which still renders the app.
+    // The app's own pages. Any other path is looked for as a file, and failing that, it's not found.
     Paths.PAGES.forEach { path ->
         require(path in PAGE_TITLES) { "No page title for $path" }
         val meta = PageMeta.page(PAGE_TITLES[path], path, indexable = path in INDEXABLE_PAGES)
@@ -133,6 +137,7 @@ fun Route.webRoutes(
         staticFiles("/", webRoot) {
             etag { resource -> (resource as File).let { EntityTagVersion("${it.lastModified()}-${it.length()}") } }
             cacheControl { listOf(CacheControl.NoCache(null)) }
+            fallback { _, call -> call.respondNotFound(shell) }
         }
     }
 }

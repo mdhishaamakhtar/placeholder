@@ -14,6 +14,16 @@ data class AppConfig(
     val webRoot: File?,
     val createsPerMinute: Long,
     val trustProxyHeaders: Boolean,
+    /**
+     * The header the proxies put the client's address in. X-Forwarded-For behind nginx; on Railway, X-Real-IP, which
+     * its edge sets itself (it doesn't document X-Forwarded-For at all).
+     */
+    val clientIpHeader: String,
+    /**
+     * How many proxies you control sit in front of the app, each adding the address it saw to X-Forwarded-For.
+     * The client's address is read that many entries from the end; anything further left came from the client.
+     */
+    val proxyHops: Int,
     /** Sign-ups and sign-ins per minute, per client. Argon2 is costly by design, so this stays tight. */
     val authPerMinute: Long,
     /** Kafka brokers to bootstrap from, comma-separated. Clicks travel through Kafka on their way to Postgres. */
@@ -61,6 +71,8 @@ data class AppConfig(
                 webRoot = value("webRoot")?.let(::File)?.takeIf { it.isDirectory },
                 createsPerMinute = required("rateLimit.createsPerMinute").toLong(),
                 trustProxyHeaders = value("trustProxyHeaders").toBoolean(),
+                clientIpHeader = required("clientIpHeader"),
+                proxyHops = required("proxyHops").toInt().also { require(it >= 1) { "proxyHops must be at least 1" } },
                 authPerMinute = required("rateLimit.authPerMinute").toLong(),
                 kafkaBootstrapServers = required("kafka.bootstrapServers"),
                 kafkaReplicationFactor = required("kafka.replicationFactor").toShort(),

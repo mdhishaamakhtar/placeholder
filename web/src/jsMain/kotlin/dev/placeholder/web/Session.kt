@@ -49,11 +49,14 @@ object Session {
         me = Api.signUp(email, password)
     }
 
+    /** Signs out on the server first: if that fails, you're still signed in there, so you stay signed in here. */
     suspend fun signOut() {
-        try {
-            Api.signOut()
-        } finally {
-            me = null
-        }
+        Api.signOut()
+        me = null
+    }
+
+    /** The server no longer knows this session (it expired, or you signed out in another tab). */
+    fun ended() {
+        me = null
     }
 }

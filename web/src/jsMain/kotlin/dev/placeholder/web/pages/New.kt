@@ -1,8 +1,10 @@
 package dev.placeholder.web.pages
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -12,17 +14,21 @@ import com.varabyte.kobweb.core.rememberPageContext
 import com.varabyte.kobweb.navigation.UpdateHistoryMode
 import dev.placeholder.shared.Paths
 import dev.placeholder.shared.Rules
+import dev.placeholder.web.Drafts
 import dev.placeholder.web.Session
 import dev.placeholder.web.components.Loading
 import dev.placeholder.web.components.Shell
+import dev.placeholder.web.editor.Busy
 import dev.placeholder.web.editor.Composer
 import dev.placeholder.web.editor.CreatedLink
 import dev.placeholder.web.editor.EditorFoot
 import dev.placeholder.web.editor.EditorMode
 import dev.placeholder.web.editor.EditorState
 import dev.placeholder.web.editor.Saved
+import kotlinx.browser.window
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.w3c.dom.events.Event
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -35,6 +41,8 @@ fun NewPage() {
     val ctx = rememberPageContext()
     val from = ctx.route.params["from"]?.takeIf(Rules::isSlug)
     val edit = ctx.route.params["edit"]?.takeIf(Rules::isSlug)
+    // A link address that can't exist (a typo, or a cut-off URL): say so rather than open a blank editor silently.
+    val malformed = listOfNotNull(ctx.route.params["edit"], ctx.route.params["from"]).firstOrNull { !Rules.isSlug(it) }
 
     LaunchedEffect(Session.ready, Session.me) {
         if (Session.ready && Session.me == null) {
@@ -47,22 +55,41 @@ fun NewPage() {
         Shell(title = "New link") { Loading() }
         return
     }
-    Editor(from = from, edit = edit)
+    // One editor per place: going from editing a link to "New" starts over instead of keeping the old link's text.
+    key(from, edit) { Editor(from = from, edit = edit, malformed = malformed) }
 }
 
 @Composable
 private fun Editor(
     from: String?,
     edit: String?,
+    malformed: String?,
 ) {
     val ctx = rememberPageContext()
     val scope = rememberCoroutineScope()
     val state = remember { EditorState() }
     var created by remember { mutableStateOf<Saved.Created?>(null) }
+    val place = edit?.let(Paths::edit) ?: from?.let(Paths::copyOf) ?: Paths.NEW
 
-    LaunchedEffect(from, edit) {
-        val source = edit ?: from ?: return@LaunchedEffect
-        state.startFrom(source, wantsToEdit = edit != null)
+    LaunchedEffect(Unit) {
+        val draft = Drafts.take(place)
+        val source = edit ?: from
+        if (source != null) state.startFrom(source, wantsToEdit = edit != null)
+        if (malformed != null) state.complain("/$malformed isn't a link address, so there's nothing to start from.")
+        if (draft != null) state.restore(draft)
+    }
+
+    // Leaving for another page, or to sign in again, sets unsaved work aside; it's back when you return here.
+    DisposableEffect(Unit) {
+        onDispose { if (state.hasUnsavedWork) Drafts.keep(place, state.text) }
+    }
+
+    // Closing or reloading the tab can't be undone, so the browser asks first while there's unsaved work.
+    val unsaved = state.hasUnsavedWork
+    DisposableEffect(unsaved) {
+        val warn: (Event) -> Unit = { it.preventDefault() }
+        if (unsaved) window.addEventListener("beforeunload", warn)
+        onDispose { window.removeEventListener("beforeunload", warn) }
     }
 
     // Detect a beat after typing stops, so a long paste doesn't stall every keystroke.
@@ -95,6 +122,7 @@ private fun Editor(
         Composer(
             text = state.text,
             language = state.detection?.takeUnless { it.isLink }?.language,
+            readOnly = state.busy != Busy.NONE,
             onText = state::edit,
             onSubmit = ::save,
         )

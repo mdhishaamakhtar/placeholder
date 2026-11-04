@@ -2,8 +2,10 @@ package dev.placeholder.server.snip
 
 import dev.placeholder.server.ForbiddenException
 import dev.placeholder.server.InvalidInputException
+import dev.placeholder.server.NotFoundException
 import dev.placeholder.server.account.User
 import dev.placeholder.shared.CreateSnipRequest
+import dev.placeholder.shared.Messages
 import dev.placeholder.shared.Rules
 import dev.placeholder.shared.SnipKind
 import dev.placeholder.shared.SnipPage
@@ -13,6 +15,7 @@ import java.time.Instant
 class SnipService(
     private val cache: SnipCache,
     private val repository: SnipRepository,
+    private val links: LinkTargets,
     private val slugs: Slugs = Slugs(),
 ) {
     suspend fun create(
@@ -73,8 +76,12 @@ class SnipService(
                     )
                 },
                 now = Instant.ofEpochMilli(now),
-            ) ?: throw ForbiddenException("Only the person who made this link can edit it.")
-        cache.evict(slug)
+            ) ?: throw if (lookup(slug, now) == Lookup.Missing) {
+                NotFoundException(Messages.NOT_FOUND)
+            } else {
+                ForbiddenException("Only the person who made this link can edit it.")
+            }
+        cache.replace(updated, now)
         return updated
     }
 
@@ -106,6 +113,8 @@ class SnipService(
                 "There's nothing to save. Paste a link, code, or text first.",
             )
         }
+        // Postgres can't store a null character in text. It turns up when a binary file is pasted.
+        if ('\u0000' in content) throw InvalidInputException("That has a null character in it, which can't be saved.")
         val bytes = content.encodeToByteArray().size
         if (bytes > Rules.MAX_CONTENT_BYTES) {
             throw InvalidInputException("That's ${bytes / 1024} KB. The limit is ${Rules.MAX_CONTENT_BYTES / 1024} KB.")
@@ -119,7 +128,7 @@ class SnipService(
                 language != null && language != "markdown" -> SnipKind.CODE
                 else -> SnipKind.TEXT
             }
-        return Body(kind, language, link ?: content)
+        return Body(kind, language, link?.let(links::normalize) ?: content)
     }
 
     private companion object {

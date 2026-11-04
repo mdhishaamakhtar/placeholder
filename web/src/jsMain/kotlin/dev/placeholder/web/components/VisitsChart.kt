@@ -52,7 +52,7 @@ fun VisitsChart(days: List<DayStats>) {
         }) {
             days.forEachIndexed { index, day ->
                 Div({
-                    classes("bar")
+                    classes("day")
                     if (index == selected) classes("on")
                     onMouseEnter { selected = index }
                 }) {

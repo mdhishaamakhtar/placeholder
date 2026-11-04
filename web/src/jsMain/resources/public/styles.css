@@ -112,6 +112,7 @@
   --edge-top: var(--space-5);
   --measure: 70ch;             /* comfortable reading line */
   --tap: 2.75rem;              /* 44px minimum touch target */
+  --underline-offset: 3px;     /* text underlines: clear of descenders, still attached to the word */
 
   /* Motion */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -258,7 +259,7 @@ html, body {
   cursor: pointer;
   text-decoration: underline;
   text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-underline-offset: var(--underline-offset);
   text-decoration-color: var(--underline);
   transition: text-decoration-color var(--fast) ease, opacity var(--fast) ease;
 }
@@ -267,7 +268,7 @@ html, body {
 .act .swap > span {
   text-decoration: underline;
   text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+  text-underline-offset: var(--underline-offset);
   text-decoration-color: var(--underline);
 }
 
@@ -460,7 +461,7 @@ html, body {
 
 .sheet .line {
   display: grid;
-  grid-template-columns: 4ch minmax(0, 1fr);
+  grid-template-columns: max(4ch, calc(var(--digits) * 1ch)) minmax(0, 1fr);
   column-gap: 2.5ch;
 }
 
@@ -470,7 +471,7 @@ html, body {
 /* Phones: wrapping code this narrow makes it unreadable, so the code scrolls sideways instead. Text still wraps. */
 @media (max-width: 600px) {
   .sheet { overflow-x: auto; }
-  .sheet .line { grid-template-columns: 3ch max-content; column-gap: 2ch; }
+  .sheet .line { grid-template-columns: max(3ch, calc(var(--digits) * 1ch)) max-content; column-gap: 2ch; }
   .sheet .src { white-space: pre; overflow-wrap: normal; }
 }
 
@@ -501,7 +502,7 @@ html, body {
 .prose .hljs-section, .prose .hljs-strong { font-weight: 500; }
 .prose .hljs-emphasis { font-style: italic; }
 .prose .hljs-bullet, .prose .hljs-code { color: var(--muted); }
-.prose .hljs-link { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--underline); }
+.prose .hljs-link { text-decoration: underline; text-underline-offset: var(--underline-offset); text-decoration-color: var(--underline); }
 
 /* ---------- Lists of links: one row design everywhere (landing examples, Your links) ---------- */
 
@@ -553,7 +554,7 @@ html, body {
 
 @media (hover: hover) and (pointer: fine) {
   .snip-rows li:has(.row-link) { cursor: pointer; }
-  .snip-rows li:has(.row-link):hover .row-to { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  .snip-rows li:has(.row-link):hover .row-to { text-decoration: underline; text-underline-offset: var(--underline-offset); text-decoration-thickness: 1px; }
 }
 
 /* The visit count opens the link's visits page, so it sits above the row-wide link around it. */
@@ -563,7 +564,7 @@ html, body {
   color: inherit;
   text-decoration: underline;
   text-decoration-color: var(--underline);
-  text-underline-offset: 3px;
+  text-underline-offset: var(--underline-offset);
   transition: color var(--fast) ease;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -675,13 +676,15 @@ html, body {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   gap: var(--space-8);
   align-items: end;
 }
 
-/* Side by side only when the examples get enough width to show their content, not just an ellipsis. */
-@media (max-width: 1199px) {
+/* Side by side only when the examples get enough width to show their content, not just an ellipsis. The headline,
+   capped at 12ch, fits its narrower column; the longest example needs about 690px, which this split gives from
+   1440px up. */
+@media (max-width: 1439px) {
   .hero { grid-template-columns: 1fr; gap: var(--space-7); }
 }
 
@@ -767,14 +770,14 @@ html, body {
 }
 .bars:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: var(--space-2); }
 
-.bar { display: flex; align-items: flex-end; }
-.bar > span {
+.day { display: flex; align-items: flex-end; }
+.day > span {
   inline-size: 100%;
   block-size: max(1px, var(--share));
   background: var(--underline);
   transition: background-color var(--fast) ease;
 }
-.bar.on > span { background: var(--ink); }
+.day.on > span { background: var(--ink); }
 
 .readout { margin: var(--space-4) 0 0; font-size: var(--type-reading); line-height: var(--leading-reading); }
 .readout-day { color: var(--muted); margin-right: var(--space-2); }

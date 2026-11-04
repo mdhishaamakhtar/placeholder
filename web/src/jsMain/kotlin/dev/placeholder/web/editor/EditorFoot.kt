@@ -43,6 +43,10 @@ fun EditorFoot(
             attr("aria-live", "polite")
         }) {
             when {
+                state.busy == Busy.LOADING -> {
+                    Text("Loading")
+                }
+
                 detection == null -> {
                     Text("Nothing yet")
                 }

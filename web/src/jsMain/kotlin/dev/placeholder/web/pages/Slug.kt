@@ -139,7 +139,11 @@ private fun CodeSheet(snip: SnipDto) {
                 .lines()
                 .map(::escapeHtml)
         }
-    Pre({ classes("sheet") }) {
+    Pre({
+        classes("sheet")
+        // The line-number column is as wide as the last line's number, however long the code is.
+        style { property("--digits", lines.size.toString().length) }
+    }) {
         lines.forEachIndexed { index, html ->
             Span({ classes("line") }) {
                 Span({

@@ -1,6 +1,7 @@
 package dev.placeholder.web.editor
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +27,7 @@ private const val LIVE_HIGHLIGHT_LIMIT = 40_000
 fun Composer(
     text: String,
     language: String?,
+    readOnly: Boolean,
     onText: (String) -> Unit,
     onSubmit: () -> Unit,
 ) {
@@ -34,6 +36,16 @@ fun Composer(
             if (text.length > LIVE_HIGHLIGHT_LIMIT) null else highlightHtml(text, language)
         }
     var overlay by remember { mutableStateOf<HTMLElement?>(null) }
+    var area by remember { mutableStateOf<HTMLElement?>(null) }
+
+    // The highlighted copy arrives a beat after the text (detection waits for a pause in typing), by which time the
+    // textarea may already have scrolled, say to the end of a long paste. Line it up whenever it changes.
+    LaunchedEffect(highlighted, overlay) {
+        val pre = overlay ?: return@LaunchedEffect
+        val source = area ?: return@LaunchedEffect
+        pre.scrollTop = source.scrollTop
+        pre.scrollLeft = source.scrollLeft
+    }
 
     Div({ classes("stage") }) {
         Div({
@@ -62,6 +74,7 @@ fun Composer(
             attr("autocapitalize", "off")
             attr("autocomplete", "off")
             attr("aria-label", "Paste a link, code, or text")
+            if (readOnly) attr("readonly", "")
             onInput { onText(it.value) }
             onScroll {
                 val area = it.target as HTMLElement
@@ -77,8 +90,9 @@ fun Composer(
                 }
             }
             ref { element ->
+                area = element
                 element.focus()
-                onDispose { }
+                onDispose { area = null }
             }
         }
     }

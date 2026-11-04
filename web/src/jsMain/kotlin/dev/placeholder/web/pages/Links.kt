@@ -3,6 +3,7 @@ package dev.placeholder.web.pages
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,15 +42,23 @@ fun LinksPage() {
     var items by remember { mutableStateOf<List<SnipSummary>?>(null) }
     var cursor by remember { mutableStateOf<String?>(null) }
     var loadingMore by remember { mutableStateOf(false) }
+    var signingOut by remember { mutableStateOf(false) }
+    var attempt by remember { mutableIntStateOf(0) }
+
+    /** Why the list couldn't load at all: the page shows it in place of the list. */
     var error by remember { mutableStateOf<String?>(null) }
+
+    /** Why something on a loaded list didn't work (older links, signing out): shown under the list. */
+    var problem by remember { mutableStateOf<String?>(null) }
     val me = Session.me
 
-    LaunchedEffect(Session.ready, me) {
+    LaunchedEffect(Session.ready, me, attempt) {
         if (!Session.ready) return@LaunchedEffect
         if (me == null) {
             ctx.router.navigateTo(Paths.signIn(next = Paths.LINKS), UpdateHistoryMode.REPLACE)
             return@LaunchedEffect
         }
+        error = null
         try {
             val page = Api.mySnips(null)
             items = page.items
@@ -62,13 +71,14 @@ fun LinksPage() {
     fun loadMore() {
         val from = cursor ?: return
         loadingMore = true
+        problem = null
         scope.launch {
             try {
                 val page = Api.mySnips(from)
                 items = items.orEmpty() + page.items
                 cursor = page.nextCursor
             } catch (e: ApiException) {
-                error = e.message
+                problem = e.message
             } finally {
                 loadingMore = false
             }
@@ -79,7 +89,13 @@ fun LinksPage() {
         val list = items
         when {
             list == null && error != null -> {
-                StateScreen(error.orEmpty())
+                StateScreen(lead = error.orEmpty(), sub = "Your links are safe; they just didn't load.") {
+                    Button({
+                        classes("act")
+                        attr("type", "button")
+                        onClick { attempt++ }
+                    }) { Text("Try again") }
+                }
             }
 
             list == null -> {
@@ -118,13 +134,29 @@ fun LinksPage() {
             Button({
                 classes("act", "push")
                 attr("type", "button")
+                if (signingOut) disabled()
                 onClick {
+                    signingOut = true
+                    problem = null
                     scope.launch {
-                        Session.signOut()
-                        ctx.router.navigateTo(Paths.HOME)
+                        try {
+                            Session.signOut()
+                            ctx.router.navigateTo(Paths.HOME)
+                        } catch (e: ApiException) {
+                            // Already signed out on the server: the session is gone, and the page moves on to sign-in.
+                            if (!e.isUnauthorized) problem = e.message
+                        } finally {
+                            signingOut = false
+                        }
                     }
                 }
-            }) { Text("Sign out") }
+            }) { Text(if (signingOut) "Signing out" else "Sign out") }
+            problem?.let { message ->
+                Div({
+                    classes("notice")
+                    attr("role", "alert")
+                }) { Text(message) }
+            }
         }
     }
 }

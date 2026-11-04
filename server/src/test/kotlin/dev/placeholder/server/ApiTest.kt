@@ -7,25 +7,30 @@ import dev.placeholder.shared.ApiError
 import dev.placeholder.shared.CreateSnipRequest
 import dev.placeholder.shared.CreateSnipResponse
 import dev.placeholder.shared.Credentials
+import dev.placeholder.shared.Messages
 import dev.placeholder.shared.Paths
 import dev.placeholder.shared.PrettifyRequest
 import dev.placeholder.shared.PrettifyResponse
 import dev.placeholder.shared.Rules
 import dev.placeholder.shared.SnipDto
 import dev.placeholder.shared.SnipKind
+import dev.placeholder.shared.UpdateSnipRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.get
+import io.ktor.client.request.head
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.encodedPath
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.config.MapApplicationConfig
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -216,6 +221,42 @@ class ApiTest {
         }
 
     @Test
+    fun aForgedForwardedForDoesntDodgeTheLimit() =
+        withApp(
+            TestEnv.config(createsPerMinute = 2, trustProxyHeaders = true, clientIpHeader = "X-Real-IP"),
+        ) { client ->
+            RedisClient.create(TestEnv.config().redisUrl!!).use {
+                it.connect().use { conn -> conn.sync().del(*conn.sync().keys("rl:create:*").toTypedArray()) }
+            }
+            // The edge says who the client is; a different X-Forwarded-For on every request changes nothing.
+            val statuses =
+                (1..3).map { n ->
+                    client
+                        .post("/api/snips") {
+                            header("X-Real-IP", "203.0.113.7")
+                            header(HttpHeaders.XForwardedFor, "198.51.100.$n")
+                            contentType(ContentType.Application.Json)
+                            setBody(CreateSnipRequest("note $n"))
+                        }.status
+                }
+            assertEquals(
+                listOf(HttpStatusCode.Created, HttpStatusCode.Created, HttpStatusCode.TooManyRequests),
+                statuses,
+            )
+        }
+
+    @Test
+    fun headAnswersLikeGet() =
+        withApp { client ->
+            val created = client.create("https://example.com/head").body<CreateSnipResponse>()
+            val link = client.head("/${created.slug}")
+            assertEquals(HttpStatusCode.Found, link.status)
+            assertEquals("https://example.com/head", link.headers[HttpHeaders.Location])
+            assertEquals(HttpStatusCode.OK, client.head("/").status)
+            assertEquals(HttpStatusCode.OK, client.head("/index.html").status)
+        }
+
+    @Test
     fun worksWithoutRedis() =
         withApp(useRedis = false) { client ->
             val created = client.create("https://kotlinlang.org").body<CreateSnipResponse>()
@@ -278,6 +319,104 @@ class ApiTest {
                 "/${created.slug}/og.png",
                 doc.selectFirst("meta[property=og:image]")!!.attr("content").substringAfter("test.local"),
             )
+        }
+
+    @Test
+    fun aTrailingSlashRedirectsToTheLinkWithoutIt() =
+        withApp { client ->
+            val created = client.create("hello").body<CreateSnipResponse>()
+            val response = client.get("/${created.slug}/?ref=chat")
+            assertEquals(HttpStatusCode.MovedPermanently, response.status)
+            assertEquals("/${created.slug}?ref=chat", response.headers[HttpHeaders.Location])
+
+            // "//host/" stripped of its slash would be a protocol-relative address: another site. It stays a 404.
+            val offSite = client.get { url { encodedPath = "//evil.example/" } }
+            assertEquals(HttpStatusCode.NotFound, offSite.status)
+        }
+
+    @Test
+    fun aNotFoundThatARouteWritesKeepsItsBody() =
+        withApp { client ->
+            val raw = client.get("/abcdefg/raw")
+            assertEquals(HttpStatusCode.NotFound, raw.status)
+            assertEquals("${Messages.NOT_FOUND}\n", raw.bodyAsText())
+
+            // Compressed, it must still say gzip exactly once, or a browser unzips it twice and gets nothing.
+            val api = client.get("/api/snips/abcdefg") { header(HttpHeaders.AcceptEncoding, "gzip") }
+            assertEquals(HttpStatusCode.NotFound, api.status)
+            assertEquals(listOf("gzip"), api.headers.getAll(HttpHeaders.ContentEncoding))
+        }
+
+    @Test
+    fun unknownApiPathsAnswerInJson() =
+        withApp { client ->
+            val response = client.get("/api/nothing-here")
+            assertEquals(HttpStatusCode.NotFound, response.status)
+            assertEquals(Messages.NOT_FOUND, response.body<ApiError>().message)
+            assertEquals(HttpStatusCode.NotFound, client.post("/api/nothing-here").status)
+        }
+
+    @Test
+    fun aBodyThatIsntJsonIsTheClientsMistake() =
+        withApp { client ->
+            val response =
+                client.post("/api/snips") {
+                    contentType(ContentType.Application.FormUrlEncoded)
+                    setBody("content=hello")
+                }
+            assertEquals(HttpStatusCode.BadRequest, response.status)
+            assertEquals("The request body isn't valid.", response.body<ApiError>().message)
+        }
+
+    @Test
+    fun aNullCharacterIsRefusedNotAServerError() =
+        withApp { client ->
+            assertEquals(HttpStatusCode.BadRequest, client.create("binary\u0000data").status)
+        }
+
+    @Test
+    fun anInternationalLinkRedirectsToItsAsciiForm() =
+        withApp { client ->
+            val created = client.create("https://例え.jp/パス?q=%20kept").body<CreateSnipResponse>()
+            assertEquals(SnipKind.LINK, created.kind)
+            val redirect = client.get("/${created.slug}")
+            assertEquals("https://xn--r8jz45g.jp/%E3%83%91%E3%82%B9?q=%20kept", redirect.headers[HttpHeaders.Location])
+        }
+
+    @Test
+    fun aLinkBackToThisSiteIsRefused() =
+        withApp { client ->
+            val created = client.create("hello").body<CreateSnipResponse>()
+            assertEquals(HttpStatusCode.BadRequest, client.create(created.url).status)
+        }
+
+    @Test
+    fun editingALinkThatDoesntExistIsNotFound() =
+        withApp { client ->
+            val response =
+                client.put("/api/snips/abcdefg") {
+                    contentType(ContentType.Application.Json)
+                    setBody(UpdateSnipRequest("hello", null))
+                }
+            assertEquals(HttpStatusCode.NotFound, response.status)
+        }
+
+    @Test
+    fun aPreviewCardRendersCodeWithAVeryLongString() =
+        withApp { client ->
+            val code = "val blob = \"" + "A".repeat(20_000) + "\"\n"
+            val created = client.create(code, "kotlin").body<CreateSnipResponse>()
+            val card = client.get("/${created.slug}/og.png")
+            assertEquals(HttpStatusCode.OK, card.status)
+            assertEquals(ContentType.Image.PNG, card.contentType())
+        }
+
+    @Test
+    fun aCursorFromOutsideTimeStartsAtTheTop() =
+        withApp { client ->
+            client.create("hello")
+            val response = client.get("/api/me/snips?before=9223372036854775807_abcdefg")
+            assertEquals(HttpStatusCode.OK, response.status)
         }
 
     @Test
