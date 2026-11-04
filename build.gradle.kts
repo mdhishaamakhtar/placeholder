@@ -15,28 +15,36 @@ spotless {
     val ktlint = libs.versions.ktlint.get()
     // Named explicitly so Spotless treats it as an input: otherwise an .editorconfig change isn't re-checked.
     val editorConfig = rootProject.file(".editorconfig")
-    val generated = listOf("**/build/**", "**/.gradle/**", "**/.kotlin/**", "**/.kobweb/**")
+
+    // Only the repository's own files: everything git tracks, plus new files it hasn't been told to ignore. Build
+    // output and local tool state (anything in .gitignore or .git/info/exclude) are never checked, so a clean
+    // checkout and a working copy full of caches pass or fail alike.
+    val repoFiles =
+        providers
+            .exec { commandLine("git", "ls-files", "--cached", "--others", "--exclude-standard") }
+            .standardOutput.asText
+            .get()
+            .lines()
+            .filter { it.isNotBlank() && file(it).isFile }
+
+    fun withExtensions(vararg extensions: String) = files(repoFiles.filter { path -> extensions.any(path::endsWith) })
 
     kotlin {
-        target("**/*.kt")
-        targetExclude(generated)
+        target(withExtensions(".kt"))
         ktlint(ktlint).setEditorConfigPath(editorConfig)
     }
     kotlinGradle {
-        target("**/*.gradle.kts")
-        targetExclude(generated)
+        target(withExtensions(".gradle.kts"))
         ktlint(ktlint).setEditorConfigPath(editorConfig)
     }
     format("text") {
-        target("**/*.css", "**/*.sql", "**/*.yml", "**/*.yaml", "**/*.toml", "**/*.json", "**/*.sh", "**/*.conf")
-        targetExclude(generated + "**/kotlin-js-store/**")
+        target(withExtensions(".css", ".sql", ".yml", ".yaml", ".toml", ".json", ".sh", ".conf"))
         trimTrailingWhitespace()
         endWithNewline()
     }
     // Markdown keeps trailing spaces: two at the end of a line are a line break.
     format("markdown") {
-        target("**/*.md")
-        targetExclude(generated)
+        target(withExtensions(".md"))
         endWithNewline()
     }
 }
