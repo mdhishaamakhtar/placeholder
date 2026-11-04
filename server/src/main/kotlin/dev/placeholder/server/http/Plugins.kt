@@ -25,7 +25,6 @@ import java.time.Duration
 fun Application.installPlugins(
     config: AppConfig,
     metrics: Metrics,
-    shell: AppShell,
 ) {
     install(ContentNegotiation) {
         json(Json { ignoreUnknownKeys = true })
@@ -72,7 +71,7 @@ fun Application.installPlugins(
             readableRoute((if (node.selector is HttpMethodRouteSelector) node.parent ?: node else node).toString())
         }
     }
-    installErrorHandling(shell)
+    installErrorHandling()
 }
 
 /** JSON escaping can roughly double the size of the raw content, so allow headroom over the content limit. */

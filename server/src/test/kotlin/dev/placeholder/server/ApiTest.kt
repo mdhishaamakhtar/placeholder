@@ -298,11 +298,25 @@ class ApiTest {
         }
 
     @Test
+    fun aNotFoundThatARouteWritesKeepsItsBody() =
+        withApp { client ->
+            val raw = client.get("/abcdefg/raw")
+            assertEquals(HttpStatusCode.NotFound, raw.status)
+            assertEquals("${Messages.NOT_FOUND}\n", raw.bodyAsText())
+
+            // Compressed, it must still say gzip exactly once, or a browser unzips it twice and gets nothing.
+            val api = client.get("/api/snips/abcdefg") { header(HttpHeaders.AcceptEncoding, "gzip") }
+            assertEquals(HttpStatusCode.NotFound, api.status)
+            assertEquals(listOf("gzip"), api.headers.getAll(HttpHeaders.ContentEncoding))
+        }
+
+    @Test
     fun unknownApiPathsAnswerInJson() =
         withApp { client ->
             val response = client.get("/api/nothing-here")
             assertEquals(HttpStatusCode.NotFound, response.status)
             assertEquals(Messages.NOT_FOUND, response.body<ApiError>().message)
+            assertEquals(HttpStatusCode.NotFound, client.post("/api/nothing-here").status)
         }
 
     @Test

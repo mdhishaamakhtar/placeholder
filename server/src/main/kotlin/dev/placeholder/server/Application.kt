@@ -107,7 +107,7 @@ private val KAFKA_GRACE = 10.seconds
 
 fun Application.configure(components: AppComponents) {
     val config = components.config
-    installPlugins(config, components.metrics, components.appShell)
+    installPlugins(config, components.metrics)
     install(SessionAuth) {
         accounts = components.accounts
         publicBaseUrl = config.publicBaseUrl

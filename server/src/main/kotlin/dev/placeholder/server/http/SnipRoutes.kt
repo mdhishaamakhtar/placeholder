@@ -91,6 +91,11 @@ fun Route.snipRoutes(
             call.respond(clicks.stats(snip.slug))
         }
 
+        // Lowest priority under /api: answers only when no endpoint matched, in the same JSON as every other error.
+        route("{...}") {
+            handle { call.respond(HttpStatusCode.NotFound, ApiError(Messages.NOT_FOUND)) }
+        }
+
         post("/prettify") {
             call.requireUser()
             limiter.check("prettify", call.clientId())

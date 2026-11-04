@@ -88,9 +88,8 @@ fun Route.webRoutes(
     get(Regex(slug)) {
         val path = "/${call.parameters["slug"]}"
         when (val found = snips.lookup(call.parameters["slug"].orEmpty())) {
-            // The 404 handler in ErrorHandling.kt serves the app, which shows the "nothing here" screen.
             Lookup.Missing -> {
-                call.respond(HttpStatusCode.NotFound)
+                call.respondNotFound(shell)
             }
 
             Lookup.Expired -> {
@@ -120,7 +119,7 @@ fun Route.webRoutes(
         shell.respond(call, HttpStatusCode.OK, PageMeta.page("Visits", path, indexable = false))
     }
 
-    // The app's own pages. Any other path falls through to the 404 handler, which still renders the app.
+    // The app's own pages. Any other path is looked for as a file, and failing that, it's not found.
     Paths.PAGES.forEach { path ->
         require(path in PAGE_TITLES) { "No page title for $path" }
         val meta = PageMeta.page(PAGE_TITLES[path], path, indexable = path in INDEXABLE_PAGES)
@@ -133,6 +132,7 @@ fun Route.webRoutes(
         staticFiles("/", webRoot) {
             etag { resource -> (resource as File).let { EntityTagVersion("${it.lastModified()}-${it.length()}") } }
             cacheControl { listOf(CacheControl.NoCache(null)) }
+            fallback { _, call -> call.respondNotFound(shell) }
         }
     }
 }
