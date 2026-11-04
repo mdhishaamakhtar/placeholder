@@ -25,7 +25,8 @@ sealed interface EditorMode {
     ) : EditorMode
 }
 
-enum class Busy { NONE, SAVING, PRETTIFYING }
+/** What the editor is waiting on. While it waits, the text is read-only, so nothing typed can be overwritten. */
+enum class Busy { NONE, LOADING, SAVING, PRETTIFYING }
 
 /** The outcome of saving, for the page to act on (show the new link, or go back to the edited one). */
 sealed interface Saved {
@@ -56,11 +57,16 @@ class EditorState {
 
     private var detected by mutableStateOf<Detection?>(null)
 
+    /** The text as it was last loaded or saved: anything else is unsaved work. */
+    private var baseline = ""
+
     /** Set when the person corrects the detected language; `Pick(null)` means they chose plain text. */
     private var picked by mutableStateOf<Pick?>(null)
 
+    /** A correction, and the guess it overrode: once the detector guesses something else, the paste has changed. */
     private data class Pick(
         val language: String?,
+        val over: String?,
     )
 
     /** What the paste is treated as: the detector's guess, unless the person picked something else. */
@@ -74,7 +80,11 @@ class EditorState {
     val tooBig: Boolean get() = text.encodedLength() > Rules.MAX_CONTENT_BYTES
     val canSave: Boolean get() = detection != null && !tooBig && busy == Busy.NONE
 
+    /** True when leaving now would lose something the person typed or pasted. */
+    val hasUnsavedWork: Boolean get() = text.isNotBlank() && text != baseline
+
     fun edit(newText: String) {
+        if (busy != Busy.NONE) return
         text = newText
         error = null
         if (newText.isBlank()) {
@@ -84,12 +94,24 @@ class EditorState {
     }
 
     fun pickLanguage(language: String?) {
-        picked = Pick(language)
+        picked = Pick(language, over = detected?.language)
     }
 
     /** Runs detection on the current text. The caller debounces, so a long paste doesn't stall every keystroke. */
     fun redetect() {
         detected = if (text.isBlank()) null else detect(text)
+        if (picked?.let { it.over != detected?.language } == true) picked = null
+    }
+
+    /** Shows a problem that isn't the result of anything the person did here, like a bad link address. */
+    fun complain(message: String) {
+        error = message
+    }
+
+    /** Puts back work that was set aside (see [hasUnsavedWork]), as unsaved. */
+    fun restore(draft: String) {
+        text = draft
+        redetect()
     }
 
     /** Starts from an existing snip: your own to change it in place, anyone's to save as a new link. */
@@ -97,6 +119,7 @@ class EditorState {
         slug: String,
         wantsToEdit: Boolean,
     ) {
+        busy = Busy.LOADING
         try {
             val snip = Api.snip(slug)
             when {
@@ -110,6 +133,7 @@ class EditorState {
 
                 else -> {
                     text = snip.content
+                    baseline = snip.content
                     redetect()
                     val notYours = wantsToEdit && !snip.owned
                     mode = if (wantsToEdit && snip.owned) EditorMode.Editing(slug) else EditorMode.CopyOf(slug)
@@ -118,6 +142,8 @@ class EditorState {
             }
         } catch (e: ApiException) {
             error = e.message
+        } finally {
+            busy = Busy.NONE
         }
     }
 
@@ -132,11 +158,14 @@ class EditorState {
             when (val m = mode) {
                 is EditorMode.Editing -> {
                     Api.update(m.slug, text, language)
+                    baseline = text
                     Saved.Updated(m.slug)
                 }
 
                 else -> {
-                    Saved.Created(Api.create(text, language, expiresIn), summary(current))
+                    val created = Saved.Created(Api.create(text, language, expiresIn), summary(current))
+                    baseline = text
+                    created
                 }
             }
         } catch (e: ApiException) {
@@ -164,6 +193,7 @@ class EditorState {
     /** Back to an empty editor, ready for the next link. */
     fun reset() {
         text = ""
+        baseline = ""
         detected = null
         picked = null
         error = null

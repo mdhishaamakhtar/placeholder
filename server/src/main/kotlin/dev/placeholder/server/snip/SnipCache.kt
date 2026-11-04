@@ -17,7 +17,8 @@ import java.util.concurrent.CompletableFuture
 /**
  * Read-through cache in front of the repository: in-process Caffeine first, then Redis, then Postgres.
  * Anonymous snips never change, so they can be held as long as memory allows. Owned snips can be edited,
- * so every edit evicts them everywhere through the [InvalidationBus].
+ * so every edit replaces them in Redis and evicts them from every instance's memory through the [InvalidationBus].
+ * Redis only ever moves forward a version, so a lookup that read the old row just before an edit can't put it back.
  *
  * The in-process layer is an async cache, which coalesces concurrent misses: when a link goes viral before it's
  * cached, the first request starts the lookup and every request behind it awaits the same lookup instead of
@@ -37,12 +38,16 @@ class SnipCache(
     private val fromDatabase = lookups(registry, "database")
     private val coalesced = lookups(registry, "coalesced")
 
-    /** A lookup that finds nothing completes with null, which Caffeine doesn't keep: misses go to Redis next time. */
+    /**
+     * A lookup that finds nothing completes with null, which Caffeine doesn't keep: misses go to Redis next time.
+     * Entries are dropped ten minutes after they were loaded, however popular, so an edit whose invalidation never
+     * arrived (Redis was down) is out of date for ten minutes at most.
+     */
     private val local: AsyncCache<String, Snip?> =
         Caffeine
             .newBuilder()
             .maximumSize(50_000)
-            .expireAfterAccess(Duration.ofMinutes(10))
+            .expireAfterWrite(Duration.ofMinutes(10))
             .buildAsync()
 
     init {
@@ -111,10 +116,13 @@ class SnipCache(
         return inserted
     }
 
-    /** Call after any change to a stored snip. */
-    suspend fun evict(slug: String) {
-        redis?.delete(key(slug))
-        bus.invalidate(TOPIC, slug)
+    /** Call after any change to a stored snip, with the snip as it now is. */
+    suspend fun replace(
+        snip: Snip,
+        now: Long,
+    ) {
+        share(snip, now)
+        bus.invalidate(TOPIC, snip.slug)
     }
 
     /** Puts [snip] in Redis for the other instances, until it expires or for a day, whichever is sooner. */
@@ -124,7 +132,11 @@ class SnipCache(
     ) {
         val untilExpiry = snip.expiresAt?.let { (it - now) / 1000 }
         val ttl = minOf(HIT_TTL_SECONDS, untilExpiry ?: HIT_TTL_SECONDS)
-        if (ttl > 0) redis?.setEx(key(snip.slug), ttl, Json.encodeToString(Snip.serializer(), snip))
+        if (ttl >
+            0
+        ) {
+            redis?.setExIfNotOlder(key(snip.slug), ttl, snip.version, Json.encodeToString(Snip.serializer(), snip))
+        }
     }
 
     private fun decode(value: String): Snip? =

@@ -36,6 +36,7 @@ object TestEnv {
         webRoot = webRoot,
         createsPerMinute = createsPerMinute,
         trustProxyHeaders = false,
+        proxyHops = 1,
         authPerMinute = 10_000,
         kafkaBootstrapServers = kafka.bootstrapServers,
         kafkaReplicationFactor = 1,

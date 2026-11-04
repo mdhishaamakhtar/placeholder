@@ -44,10 +44,14 @@ data class Cursor(
     override fun toString() = "${createdAt}_$slug"
 
     companion object {
+        /** Null for anything that isn't a cursor this server could have made, which reads as "from the start". */
         fun parse(value: String?): Cursor? {
             val (time, slug) = value?.split('_', limit = 2)?.takeIf { it.size == 2 } ?: return null
-            return time.toLongOrNull()?.let { Cursor(it, slug) }
+            return time.toLongOrNull()?.takeIf { it in VALID_TIMES }?.let { Cursor(it, slug) }
         }
+
+        /** From the epoch to the end of year 9999: Postgres rejects timestamps outside its range with an error. */
+        private val VALID_TIMES = 0L..253_402_300_799_999L
     }
 }
 

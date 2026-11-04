@@ -21,6 +21,7 @@ class ConfigTest {
         webRoot = null,
         createsPerMinute = 1,
         trustProxyHeaders = false,
+        proxyHops = 1,
         authPerMinute = 1,
         kafkaBootstrapServers = "localhost:9092",
         kafkaReplicationFactor = 1,

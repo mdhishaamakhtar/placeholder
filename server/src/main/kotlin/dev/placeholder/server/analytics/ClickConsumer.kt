@@ -20,6 +20,7 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.errors.InterruptException
 import org.apache.kafka.common.errors.RebalanceInProgressException
+import org.apache.kafka.common.errors.RetriableException
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.concurrent.Executors
@@ -174,6 +175,10 @@ class ClickConsumer(
             log.info("Offsets not committed after a rebalance; the batch will be recognised as counted: {}", e.message)
         } catch (e: RebalanceInProgressException) {
             log.info("Offsets not committed during a rebalance; the batch will be recognised as counted: {}", e.message)
+        } catch (e: RetriableException) {
+            // Kafka is unreachable or slow (the commit timed out). Keep consuming: the next commit carries these
+            // offsets too, and if this instance stops first, the batch is read again and its ids are skipped.
+            log.warn("Offsets not committed, will commit with the next batch: {}", e.message)
         }
     }
 

@@ -28,9 +28,13 @@ class ApiException(
 ) : RuntimeException(message) {
     /** The link existed but has expired (410 Gone). */
     val isExpired: Boolean get() = status == GONE
+
+    /** The session is gone (401): the person needs to sign in again. */
+    val isUnauthorized: Boolean get() = status == UNAUTHORIZED
 }
 
 private const val NO_CONTENT = 204
+private const val UNAUTHORIZED = 401
 private const val NOT_FOUND = 404
 private const val GONE = 410
 
@@ -72,15 +76,23 @@ object Api {
         email: String,
         password: String,
     ): Me =
-        send("POST", "/api/account/signup", json.encodeToString(Credentials.serializer(), Credentials(email, password)))
-            .let { json.decodeFromString(Me.serializer(), it) }
+        send(
+            "POST",
+            "/api/account/signup",
+            json.encodeToString(Credentials.serializer(), Credentials(email, password)),
+            signingIn = true,
+        ).let { json.decodeFromString(Me.serializer(), it) }
 
     suspend fun signIn(
         email: String,
         password: String,
     ): Me =
-        send("POST", "/api/account/signin", json.encodeToString(Credentials.serializer(), Credentials(email, password)))
-            .let { json.decodeFromString(Me.serializer(), it) }
+        send(
+            "POST",
+            "/api/account/signin",
+            json.encodeToString(Credentials.serializer(), Credentials(email, password)),
+            signingIn = true,
+        ).let { json.decodeFromString(Me.serializer(), it) }
 
     suspend fun signOut() {
         send("POST", "/api/account/signout", "{}")
@@ -123,6 +135,7 @@ object Api {
         method: String,
         path: String,
         body: String,
+        signingIn: Boolean = false,
     ): String {
         val response =
             request {
@@ -132,7 +145,7 @@ object Api {
                         RequestInit(method = method, headers = json("Content-Type" to "application/json"), body = body),
                     ).await()
             }
-        return response.ensureOk()
+        return response.ensureOk(signingIn)
     }
 
     /** fetch() rejects only when the request never got an answer (offline, DNS, CORS); that's what this reports. */
@@ -145,9 +158,14 @@ object Api {
             throw ApiException(0, "Couldn't reach the server. Check your connection and try again.")
         }
 
-    private suspend fun Response.ensureOk(): String {
+    /**
+     * The body of a successful response, or an [ApiException] with the server's sentence. A 401 from anything but
+     * signing in means the session is gone, so [Session] hears about it and pages can send the person to sign in.
+     */
+    private suspend fun Response.ensureOk(signingIn: Boolean = false): String {
         val text = text().await()
         if (ok) return text
+        if (status.toInt() == UNAUTHORIZED && !signingIn) Session.ended()
         val message =
             try {
                 json.decodeFromString(ApiError.serializer(), text).message

@@ -186,6 +186,7 @@ Settings live in [`server/src/main/resources/application.yaml`](./server/src/mai
 | `REDIS_URL` | `redis://localhost:6379` | Leave empty to run without Redis |
 | `WEB_ROOT` | empty | Folder with the built site (`web/build/site`). Empty runs the API alone. |
 | `TRUST_PROXY_HEADERS` | `false` | Trust `X-Forwarded-*`. Only behind a proxy you control. |
+| `PROXY_HOPS` | `1` | How many proxies you control are in front of the app; the client's address is read that many entries from the end of `X-Forwarded-For`. |
 | `CREATES_PER_MINUTE` | `30` | New links per client per minute |
 | `AUTH_PER_MINUTE` | `10` | Sign-ups and sign-ins per client per minute |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka brokers, comma-separated. Clicks travel through the `clicks` topic, which the app creates. |

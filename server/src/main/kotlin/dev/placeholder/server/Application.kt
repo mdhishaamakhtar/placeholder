@@ -21,6 +21,7 @@ import dev.placeholder.server.infra.Metrics
 import dev.placeholder.server.infra.RateLimiter
 import dev.placeholder.server.infra.Redis
 import dev.placeholder.server.og.PreviewCards
+import dev.placeholder.server.snip.LinkTargets
 import dev.placeholder.server.snip.SnipCache
 import dev.placeholder.server.snip.SnipRepository
 import dev.placeholder.server.snip.SnipService
@@ -55,7 +56,12 @@ class AppComponents(
     val bus = InvalidationBus(redis)
     val accounts = AccountService(AccountRepository(database), bus)
     private val snipRepository = SnipRepository(database)
-    val snips = SnipService(SnipCache(snipRepository, redis, bus, metrics.registry, background), snipRepository)
+    val snips =
+        SnipService(
+            SnipCache(snipRepository, redis, bus, metrics.registry, background),
+            snipRepository,
+            LinkTargets(config.publicBaseUrl),
+        )
     private val clickStore = ClickStore(database)
     val clicks = Clicks(kafka, clickStore, Visitors(config.visitorKey), metrics.registry)
     val rateLimiter = RateLimiter(redis, config.createsPerMinute)

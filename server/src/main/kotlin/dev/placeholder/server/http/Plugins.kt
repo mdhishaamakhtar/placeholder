@@ -50,7 +50,12 @@ fun Application.installPlugins(
     }
     // Static files carry ETags, so revalidating browsers get a cheap 304 when nothing changed.
     install(ConditionalHeaders)
-    if (config.trustProxyHeaders) install(XForwardedHeaders)
+    if (config.trustProxyHeaders) {
+        install(XForwardedHeaders) {
+            // Read from the right: the last entry is what our nearest proxy saw. The first is whatever the client sent.
+            if (config.proxyHops == 1) useLastProxy() else skipLastProxies(config.proxyHops - 1)
+        }
+    }
     install(MicrometerMetrics) {
         registry = metrics.registry
         // Histogram buckets, so Prometheus can compute p99 across all instances (per-instance percentiles can't be

@@ -21,7 +21,9 @@ object Rules {
     private val languagePattern = Regex("^[a-z0-9+#-]{1,32}$")
     private val linkPattern = Regex("^https?://[^\\s/$.?#][^\\s]*$", RegexOption.IGNORE_CASE)
 
-    private val emailPattern = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+    // No spaces or control characters anywhere: they can't be in a real address, and Postgres won't store a null.
+    private val emailPattern =
+        Regex("^[^@\\s\\u0000-\\u001F\\u007F]+@[^@\\s\\u0000-\\u001F\\u007F]+\\.[^@\\s\\u0000-\\u001F\\u007F]+$")
 
     fun isSlug(value: String): Boolean = slugPattern.matches(value)
 

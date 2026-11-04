@@ -80,11 +80,13 @@ class PreviewCards(
                 g.color = GUTTER
                 val number = (index + 1).toString()
                 g.drawString(number, PAD + 36 - g.fontMetrics.stringWidth(number), y)
-                drawRuns(g, CodeColors.line(line.replace("\t", "  "), snip.language), PAD + 64, y, maxX = WIDTH - PAD)
+                val visible = line.replace("\t", "  ").take(MAX_LINE_CHARS)
+                drawRuns(g, CodeColors.line(visible, snip.language), PAD + 64, y, maxX = WIDTH - PAD)
             } else {
                 g.font = regular.deriveFont(28f)
                 g.color = CodeColors.INK
-                drawRuns(g, listOf(CodeColors.Run(line, CodeColors.INK)), PAD, y, maxX = WIDTH - PAD)
+                val visible = line.replace("\t", "  ").take(MAX_LINE_CHARS)
+                drawRuns(g, listOf(CodeColors.Run(visible, CodeColors.INK)), PAD, y, maxX = WIDTH - PAD)
             }
             y += LINE_HEIGHT
         }
@@ -146,10 +148,11 @@ class PreviewCards(
         var x = startX
         for (run in runs) {
             g.color = run.color
-            for (ch in run.text) {
-                val w = g.fontMetrics.charWidth(ch)
+            // By code point, not by UTF-16 unit: an emoji is one character, not two halves drawn as two boxes.
+            for (point in run.text.codePoints()) {
+                val w = g.fontMetrics.charWidth(point)
                 if (x + w > maxX) return
-                g.drawString(ch.toString(), x, y)
+                g.drawString(String(Character.toChars(point)), x, y)
                 x += w
             }
         }
@@ -213,6 +216,9 @@ class PreviewCards(
         private const val PAD = 64
         private const val LINE_HEIGHT = 40
         private const val MAX_LINES = 8
+
+        /** More than a card line can show at its narrowest glyphs; the rest isn't looked at, let alone colored. */
+        private const val MAX_LINE_CHARS = 160
         private const val FULLY_VISIBLE_LINES = 7
         private val MUTED = Color(0x8A, 0x8A, 0x8A)
         private val HAIRLINE = Color(0x26, 0x26, 0x26)

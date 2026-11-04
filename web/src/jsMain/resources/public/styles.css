@@ -461,7 +461,7 @@ html, body {
 
 .sheet .line {
   display: grid;
-  grid-template-columns: 4ch minmax(0, 1fr);
+  grid-template-columns: max(4ch, calc(var(--digits) * 1ch)) minmax(0, 1fr);
   column-gap: 2.5ch;
 }
 
@@ -471,7 +471,7 @@ html, body {
 /* Phones: wrapping code this narrow makes it unreadable, so the code scrolls sideways instead. Text still wraps. */
 @media (max-width: 600px) {
   .sheet { overflow-x: auto; }
-  .sheet .line { grid-template-columns: 3ch max-content; column-gap: 2ch; }
+  .sheet .line { grid-template-columns: max(3ch, calc(var(--digits) * 1ch)) max-content; column-gap: 2ch; }
   .sheet .src { white-space: pre; overflow-wrap: normal; }
 }
 

@@ -28,6 +28,11 @@ class ForbiddenException(
     message: String,
 ) : AppException(message)
 
+/** There's nothing at that address. → 404 */
+class NotFoundException(
+    message: String,
+) : AppException(message)
+
 /** Something already exists (an account with that email). → 409 */
 class ConflictException(
     message: String,
