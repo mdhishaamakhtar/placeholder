@@ -17,36 +17,39 @@ spotless {
     val ktlint = libs.versions.ktlint.get()
     // Named explicitly so Spotless treats it as an input: otherwise an .editorconfig change isn't re-checked.
     val editorConfig = rootProject.file(".editorconfig")
-
-    // Only the repository's own files: everything git tracks, plus new files it hasn't been told to ignore. Build
-    // output and local tool state (anything in .gitignore or .git/info/exclude) are never checked, so a clean
-    // checkout and a working copy full of caches pass or fail alike.
-    val repoFiles =
-        providers
-            .exec { commandLine("git", "ls-files", "--cached", "--others", "--exclude-standard") }
-            .standardOutput.asText
-            .get()
-            .lines()
-            .filter { it.isNotBlank() && file(it).isFile }
-
-    fun withExtensions(vararg extensions: String) = files(repoFiles.filter { path -> extensions.any(path::endsWith) })
+    // Not the project's own files: build output, and state that local tools (design checks, plans, the IDE) keep in
+    // the working copy. All of it is git-ignored too, but Spotless finds files by pattern, not by asking git.
+    val generated =
+        listOf(
+            "**/build/**",
+            "**/.gradle/**",
+            "**/.kotlin/**",
+            "**/.kobweb/**",
+            "**/.impeccable/**",
+            "**/.superpowers/**",
+            "**/.idea/**",
+        )
 
     kotlin {
-        target(withExtensions(".kt"))
+        target("**/*.kt")
+        targetExclude(generated)
         ktlint(ktlint).setEditorConfigPath(editorConfig)
     }
     kotlinGradle {
-        target(withExtensions(".gradle.kts"))
+        target("**/*.gradle.kts")
+        targetExclude(generated)
         ktlint(ktlint).setEditorConfigPath(editorConfig)
     }
     format("text") {
-        target(withExtensions(".css", ".sql", ".yml", ".yaml", ".toml", ".json", ".sh", ".conf"))
+        target("**/*.css", "**/*.sql", "**/*.yml", "**/*.yaml", "**/*.toml", "**/*.json", "**/*.sh", "**/*.conf")
+        targetExclude(generated + "**/kotlin-js-store/**")
         trimTrailingWhitespace()
         endWithNewline()
     }
     // Markdown keeps trailing spaces: two at the end of a line are a line break.
     format("markdown") {
-        target(withExtensions(".md"))
+        target("**/*.md")
+        targetExclude(generated)
         endWithNewline()
     }
 }
