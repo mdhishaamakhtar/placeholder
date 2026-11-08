@@ -174,6 +174,10 @@ html, body {
 
 ::selection { background: var(--ink); color: var(--paper); }
 
+/* Controls never double-tap zoom: two quick taps (flipping the theme back and forth) stay two taps, and clicks
+   fire without the browser waiting to see whether a second tap is coming. */
+a, button, [role="button"], summary, label { touch-action: manipulation; }
+
 * { scrollbar-width: thin; scrollbar-color: var(--scroll) transparent; }
 
 /* Theme switch: everything changes in the same frame, nothing fades on its own schedule. */
@@ -368,6 +372,12 @@ html, body {
   overflow-wrap: anywhere;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+}
+
+/* iOS Safari zooms into any focused field under 16px and never zooms back out. On touch screens the editor steps
+   up to the body size; both layers change together so the highlight still lines up with the text. */
+@media (pointer: coarse) {
+  .composer, .composer-highlight { font-size: var(--type-body); }
 }
 
 .composer {
